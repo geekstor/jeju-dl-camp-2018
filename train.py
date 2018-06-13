@@ -12,7 +12,6 @@ from skimage.transform import resize, rescale
 from skimage.color import rgb2gray
 from matplotlib.pyplot import imshow, show, pause, ion, draw
 
-
 def preprocess(x):
     return cv2.resize(cv2.cvtColor(x, cv2.COLOR_RGB2GRAY), (42, 42), interpolation=cv2.INTER_AREA)
 
@@ -29,6 +28,9 @@ def train(env, agent, max_timesteps, history_len=4):
     timestep = 0
     start_time = time.time()
 
+    ep_length = 0
+    avg_ep_length = 0
+
     # ion()
     # imshow(np.concatenate([hist_buffer[:, :, 0], hist_buffer[:, :, 1],
     #                        hist_buffer[:, :, 2], hist_buffer[:, :, 2]]),
@@ -39,13 +41,45 @@ def train(env, agent, max_timesteps, history_len=4):
             x = preprocess(env.reset())
             hist_buffer = np.zeros([42, 42, history_len], dtype=np.uint8)
             avg_reward = ((num_episodes * avg_reward) + total_r) / (num_episodes + 1)
+            avg_ep_length = ((num_episodes * avg_ep_length) + ep_length) / (num_episodes + 1)
             print("Steps Completed: ", agent.steps,
                   "Total Episode Reward: ", total_r,
                   "Average Reward: ", avg_reward, " | ",
                   str(agent.steps / (time.time() - start_time)) +
                   " steps per second.")
+
+            agent.writer.add_summary(summary = tf.Summary(value=[
+                tf.Summary.Value(tag="average_reward", simple_value=avg_reward),
+            ]), global_step=agent.steps)
+
+            agent.writer.add_summary(summary=tf.Summary(value=[
+                tf.Summary.Value(tag="episode_reward", simple_value=total_r),
+            ]), global_step=agent.steps)
+
+            agent.writer.add_summary(summary=tf.Summary(value=[
+                tf.Summary.Value(tag="steps per second", simple_value=
+                agent.steps / (time.time() - start_time)),
+            ]), global_step=agent.steps)
+
+            agent.writer.add_summary(summary=tf.Summary(value=[
+                tf.Summary.Value(tag="steps per second", simple_value=
+                agent.steps / (time.time() - start_time)),
+            ]), global_step=agent.steps)
+
+            agent.writer.add_summary(summary=tf.Summary(value=[
+                tf.Summary.Value(tag="ep_length", simple_value=ep_length),
+            ]), global_step=agent.steps)
+
+            agent.writer.add_summary(summary=tf.Summary(value=[
+                tf.Summary.Value(tag="avg_ep_length", simple_value=
+                (avg_ep_length * num_episodes + ep_length) / (num_episodes + 1) ),
+            ]), global_step=agent.steps)
+
             total_r = 0
             num_episodes += 1
+            ep_length = 0
+
+        ep_length += 1
 
         hist_buffer = np.roll(hist_buffer, shift=-1, axis=2)
         hist_buffer[:, :, -1] = x #np.maximum(hist_buffer[:, :, -2], x)
