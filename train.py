@@ -1,19 +1,18 @@
 import os
+import shutil
+import time
+
 import cv2
 import gym
-import time
-import shutil
 import numpy as np
 import tensorflow as tf
+
 from agent import C51Agent
-from collections import deque
-from skimage import img_as_ubyte
-from skimage.transform import resize, rescale
-from skimage.color import rgb2gray
-from matplotlib.pyplot import imshow, show, pause, ion, draw
+
+ACTIONS = [0, 2, 3]
 
 def preprocess(x):
-    return cv2.resize(cv2.cvtColor(x, cv2.COLOR_RGB2GRAY), (42, 42), interpolation=cv2.INTER_AREA)
+    return cv2.resize(cv2.cvtColor(x, cv2.COLOR_RGB2GRAY), (42, 42), interpolation=cv2.INTER_LINEAR)
 
 
 def train(env, agent, max_timesteps, history_len=4):
@@ -38,6 +37,7 @@ def train(env, agent, max_timesteps, history_len=4):
     # pause(1)
     while timestep < max_timesteps:
         if done:
+            done = False
             x = preprocess(env.reset())
             hist_buffer = np.zeros([42, 42, history_len], dtype=np.uint8)
             avg_reward = ((num_episodes * avg_reward) + total_r) / (num_episodes + 1)
@@ -84,7 +84,19 @@ def train(env, agent, max_timesteps, history_len=4):
         hist_buffer = np.roll(hist_buffer, shift=-1, axis=2)
         hist_buffer[:, :, -1] = x #np.maximum(hist_buffer[:, :, -2], x)
         a = agent.act([hist_buffer / 255.0])
-        x_prime, reward, done, _ = env.step(a)
+
+        act_rep = 0
+        x_primes = []
+        act_rep_reward = 0
+
+        while not done and act_rep < 4:
+            x_prime, reward, done, _ = env.step(ACTIONS[a])
+            x_primes.append(x_prime)
+            act_rep += 1
+            act_rep_reward += reward
+        x_prime = np.round(np.average(x_primes, axis=0)).astype(
+                          dtype=np.uint8)
+        reward = act_rep_reward
         total_r += reward
         x_prime = preprocess(x_prime)
         agent.update(hist_buffer, a, reward, x_prime / 255.0, done)
@@ -104,7 +116,7 @@ if "Models" in os.listdir("."):
 if "TensorBoardDir" in os.listdir("."):
     shutil.rmtree(os.getcwd() + "\\TensorBoardDir")
 env = gym.wrappers.Monitor(env, "Videos", video_callable=lambda e_id: e_id % 15 == 0)
-agent = C51Agent(num_actions=env.action_space.n)
+agent = C51Agent(num_actions=3)
 train(env, agent, 5e7)
 
 #show()

@@ -1,9 +1,10 @@
 import random
+from collections import deque
+
 import numpy as np
 import tensorflow as tf
-from collections import deque
-from tensorflow.python import debug as tf_debug
 from tensorboard.plugins.beholder import Beholder
+
 
 class C51Agent():
     class Model():
@@ -109,7 +110,7 @@ class C51Agent():
                     tf.shape(self.argmax_action)[0]), [-1, 1]) * tf.ones((1, 51), dtype=tf.int32),
                     tf.cast(self.l, dtype=tf.int32)), axis=-1)
                 self.m_l_vals = self.argmax_action_distribution * (self.u - self.b)
-                self.m_l = tf.scatter_nd(self.indexable_l, self.m_l_vals, tf.shape(self.l))
+                self.m_l = tf.scatter_nd(tf.reshape(self.indexable_l, [-1, 2]), tf.reshape(self.m_l_vals, [-1]), tf.shape(self.l))
 
                 # Add weight to the lower bin based on distance from upper bin to
                 # approximate bin index b.
@@ -117,7 +118,7 @@ class C51Agent():
                     tf.shape(self.argmax_action)[0]), [-1, 1]) * tf.ones((1, 51), dtype=tf.int32),
                     tf.cast(self.u, dtype=tf.int32)), axis=-1)
                 self.m_u_vals = self.argmax_action_distribution * (self.b - self.l)
-                self.m_u = tf.scatter_nd(self.indexable_u, self.m_u_vals, tf.shape(self.u))
+                self.m_u = tf.scatter_nd(tf.reshape(self.indexable_u, [-1, 2]), tf.reshape(self.m_u_vals, [-1]), tf.shape(self.u))
 
                 # Add Contributions of both upper and lower parts and
                 # stop gradient to not update the target network.
@@ -174,8 +175,8 @@ class C51Agent():
                                                                             self.q_value_train_net_min_trn,
                                                                             self.q_value_train_net_mean_trn])
 
-    def __init__(self, num_actions, exp_replay_size=100000, eps_start=1, eps_end=0.1,
-                 eps_period=500000):
+    def __init__(self, num_actions, exp_replay_size=10000, eps_start=1, eps_end=0.1,
+                 eps_period=250000):
         self.num_actions = num_actions
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -215,7 +216,7 @@ class C51Agent():
 
     def act(self, x):
         self.steps += 1
-        if len(self.experience_replay) < 50000 or np.random.random() < \
+        if len(self.experience_replay) < 10000 or np.random.random() < \
                 self.eps_start - (self.steps/self.eps_period) * (1 - self.eps_end):
             return np.random.randint(0, self.num_actions)
         else:
@@ -226,7 +227,7 @@ class C51Agent():
     def update(self, x, a, r, x_p, t):
         self.experience_replay.appendleft([x, a, r, x_p, not t])
 
-        if len(self.experience_replay) < 50000 or self.steps % 4 != 0:
+        if len(self.experience_replay) < 10000 or self.steps % 4 != 0:
             return
 
         total_loss = 0
@@ -290,7 +291,7 @@ class C51Agent():
 
             self.beholder.update(self.sess, frame=batch_x[0], arrays=[m, Tz, b, u, l, indexable_u, indexable_l, m_u_vals, m_l_vals, m_u, m_l])
 
-        if self.steps > 0 and self.steps % 10000 == 0:
+        if self.steps > 0 and self.steps % 1000 == 0:
             self.sess.run(self.copy_operation)
             print("Copied to target. Current Loss: ", total_loss)
 
