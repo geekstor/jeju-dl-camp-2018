@@ -222,7 +222,7 @@ class C51Agent():
         with tf.variable_scope("target_net"):
             self.target_net = self.Model(self.sess, num_actions=self.num_actions, train_net=False)
         self.summary = tf.summary.merge_all()
-        self.writer = tf.summary.FileWriter("TensorBoardDir")
+        self.writer = tf.summary.FileWriter(params.TENSORBOARD_FOLDER)
         init = tf.global_variables_initializer()
         self.sess.run(init)
 
@@ -244,7 +244,7 @@ class C51Agent():
             keep_checkpoint_every_n_hours=params.MIN_MODELS_EVERY_N_HOURS)
         # self.profiler = tf.profiler.Profiler(self.sess.graph)
 
-        self.beholder = Beholder("./TensorBoardDir")
+        self.beholder = Beholder(params.TENSORBOARD_FOLDER)
 
     def act(self, x):
         if np.random.random() < params.EPSILON_START - \
@@ -299,7 +299,7 @@ class C51Agent():
 
         if params.GLOBAL_MANAGER.num_updates > 0 and \
                 params.GLOBAL_MANAGER.num_updates % params.MODEL_SAVE_FREQ == 0:
-            self.saver.save(self.sess, "Models/model",
+            self.saver.save(self.sess, params.MODELS_FOLDER,
                             global_step=params.GLOBAL_MANAGER.num_updates,
                             write_meta_graph=(params.GLOBAL_MANAGER.num_updates <=
                                               params.MODEL_SAVE_FREQ))
