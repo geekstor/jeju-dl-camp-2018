@@ -167,12 +167,12 @@ class Manager:
     # pause(0.001)
 
 
-if params.VIDEOS_FOLDER in os.listdir("."):
-    shutil.rmtree(os.getcwd() + "\\" + params.VIDEOS_FOLDER)
-if params.MODELS_FOLDER in os.listdir("."):
-    shutil.rmtree(os.getcwd() + "\\" + params.MODELS_FOLDER)
-if params.TENSORBOARD_FOLDER in os.listdir("."):
-    shutil.rmtree(os.getcwd() + "\\" + params.TENSORBOARD_FOLDER)
+# if params.VIDEOS_FOLDER in os.listdir("."):
+#     shutil.rmtree(os.getcwd() + "\\" + params.VIDEOS_FOLDER)
+# if params.MODELS_FOLDER in os.listdir("."):
+#     shutil.rmtree(os.getcwd() + "\\" + params.MODELS_FOLDER)
+# if params.TENSORBOARD_FOLDER in os.listdir("."):
+#     shutil.rmtree(os.getcwd() + "\\" + params.TENSORBOARD_FOLDER)
 
 m = Manager()
 agent = C51Agent()

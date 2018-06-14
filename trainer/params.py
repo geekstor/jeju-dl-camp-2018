@@ -1,3 +1,5 @@
+import os
+
 GLOBAL_MANAGER = None
 
 HISTORY_LEN = 4
@@ -14,9 +16,13 @@ EPSILON_END = 0.1
 EPSILON_FINAL_STEP = 250000  # In number of actions (since learning).
 NOOP_MAX = 30  # Execute up to NOOP_MAX noop actions at the beginning of an episode. # TODO: Use No-op Max.
 MODEL_SAVE_FREQ = 5000 # In Number of updates.
-VIDEOS_FOLDER = "Videos"
-MODELS_FOLDER = "Models"
-TENSORBOARD_FOLDER = "TensorBoardDir"
+
+BASE = "gs://jeju-dl-camp-2018-distributional-rl/"
+
+VIDEOS_FOLDER = os.path.join(BASE, "Videos")
+MODELS_FOLDER = os.path.join(BASE, "Models")
+TENSORBOARD_FOLDER = os.path.join(BASE, "TensorBoardDir")
+
 EPISODE_RECORD_FREQ = 15
 REPLAY_START_SIZE = 15000
 GYM_ENV_NAME = "PongNoFrameskip-v4"
