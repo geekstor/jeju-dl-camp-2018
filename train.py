@@ -2,18 +2,13 @@ import os
 import shutil
 import time
 
-import cv2
 import gym
 import numpy as np
 import tensorflow as tf
 
 import params
+import wrappers
 from agent import C51Agent
-
-
-def preprocess(x):
-    return cv2.resize(cv2.cvtColor(x, cv2.COLOR_RGB2GRAY), tuple(params.STATE_DIMENSIONS),
-                      interpolation=cv2.INTER_LINEAR)
 
 
 class Manager:
@@ -23,9 +18,8 @@ class Manager:
         else:
             assert("Already created Manager. Meant to be used as a singleton. "
                    "Use of multiple managers not supported yet.")
-        self.env = gym.make(params.GYM_ENV_NAME)
+        self.env = wrappers.wrap_env(wrappers.make_atari(params.GYM_ENV_NAME))
         self.agent = None
-        self.hist_buffer = None
         self.timestep = 0
         self.num_updates = 0
         self.num_episodes = 0
@@ -36,52 +30,27 @@ class Manager:
         else:
             self.actions = params.ACTIONS_SPECIFICATION
 
-    def reset(self):
-        self.hist_buffer = np.zeros(params.STATE_DIMENSIONS + [params.HISTORY_LEN],
-                                    dtype=np.uint8)
-        return preprocess(self.env.reset())
-
-    def act(self, a):
-        done = False
-        act_rep = 0
-        x_primes = []
-        act_rep_reward = 0
-
-        while not done and act_rep < params.ACTION_REPEAT:
-            x_prime, reward, done, _ = self.env.step(self.actions[a])
-            x_primes.append(x_prime)
-            act_rep += 1
-            act_rep_reward += reward
-        x_prime = np.round(np.average(x_primes, axis=0)).astype(
-            dtype=np.uint8)
-
-        reward = act_rep_reward
-        x_prime = preprocess(x_prime)
-        return self.hist_buffer, a, reward, x_prime, done
-
     def train(self, agent):
         self.agent = agent
+        x = self.env.reset()
         print("Filling replay buffer.")
-        x = self.reset()
         for counter in range(params.REPLAY_START_SIZE):
-            self.hist_buffer = np.roll(self.hist_buffer, shift=-1, axis=2)
-            self.hist_buffer[:, :, -1] = x
-
             a = np.random.randint(0, len(self.actions))
-            x, a, r, x_prime, done = self.act(a)
+            x_prime, r, done, _ = self.env.step(self.actions[a])
             self.agent.add(x, a, r, x_prime, done)
             x = x_prime
 
             if done:
                 print("Finished Episode. Completed adding " + str(counter) +
                       " of " + str(params.REPLAY_START_SIZE) + " transitions to buffer.")
-                x = self.reset()
+                x = self.env.reset()
+                
         del self.env
         print("Begin training.")
-        self.env = gym.make(params.GYM_ENV_NAME)
+        self.env = wrappers.wrap_env(wrappers.make_atari(params.GYM_ENV_NAME))
         self.env = gym.wrappers.Monitor(self.env, params.VIDEOS_FOLDER, video_callable=
             lambda e_id: e_id % params.EPISODE_RECORD_FREQ == 0)
-        x = self.reset()
+        x = self.env.reset()
 
         ep_length = 0
         ep_reward = 0
@@ -89,11 +58,8 @@ class Manager:
         learning_start_time = start_time
 
         while self.timestep < params.MAX_TIMESTEPS:
-            self.hist_buffer = np.roll(self.hist_buffer, shift=-1, axis=2)
-            self.hist_buffer[:, :, -1] = x
-
-            a = self.agent.act([self.hist_buffer])
-            x, a, r, x_prime, done = self.act(a)
+            a = self.agent.act(np.array([x]))
+            x_prime, r, done, _ = self.env.step(self.actions[a])
 
             if self.timestep % params.UPDATE_FREQUENCY == 0:
                 self.agent.update(x, a, r, x_prime, done)
@@ -157,7 +123,7 @@ class Manager:
                 ep_reward = 0
                 start_time = time.time()
 
-                x = self.reset()
+                x = self.env.reset()
 
 
     # ion()

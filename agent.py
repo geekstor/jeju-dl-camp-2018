@@ -75,9 +75,9 @@ class C51Agent():
                 )
 
                 # Multiply bin probabilities by value
-                self.delta_z = (params.V_MAX - params.V_MIN) / (params.NB_ATOMS - 1)
-                self.Z = tf.range(start=params.V_MIN, limit=params.V_MAX + self.delta_z,
-                                  delta=self.delta_z)
+                delta_z = (params.V_MAX - params.V_MIN) / (params.NB_ATOMS - 1)
+                self.delta_z = tf.constant(delta_z)
+                self.Z = tf.constant([params.V_MIN + i * delta_z for i in range(params.NB_ATOMS)])
                 self.post_mul = self.q_dist * tf.reshape(self.Z, [1, 1, params.NB_ATOMS])
 
                 # Take sum to get the expected state-action values for each action
@@ -92,15 +92,16 @@ class C51Agent():
 
                 # Find argmax action given expected state-action values at next state
                 self.argmax_action = tf.argmax(self.actions, axis=-1,
-                                               output_type=tf.int32)
+                                               output_type=tf.int32,
+                                               name="target_net_argmax_action")
 
                 # Get it's corresponding distribution (this is the target distribution)
                 self.argmax_action_distribution = tf.gather_nd(
                     self.q_dist,
                     tf.stack(
                         (self.batch_size_range, self.argmax_action),
-                        axis=1
-                    )
+                        axis=1, name="index_for_argmax_action_q_dist"
+                    ), name="gather_nd_for_batch_argmax_action_q_dists"
                 )  # Axis = 1 => [N, 2]
 
                 self.mean_argmax_next_state_value = tf.summary.scalar("mean_argmax_q_target",
@@ -114,49 +115,51 @@ class C51Agent():
                 # r + gamma * z clipped to [V_min, V_max]
                 self.Tz = tf.clip_by_value(tf.reshape(self.r, [-1, 1]) + 0.99 *
                     tf.cast(tf.reshape(self.t, [-1, 1]), tf.float32) * self.Z,
-                    clip_value_min=params.V_MIN, clip_value_max=params.V_MAX)
+                    clip_value_min=params.V_MIN, clip_value_max=params.V_MAX, name="Tz")
 
                 # Compute bin number (will be floating point).
-                self.b = (self.Tz - params.V_MIN)/self.delta_z
+                self.b = tf.identity((self.Tz - params.V_MIN)/self.delta_z, name="b")
 
                 # Lower and Upper Bins.
-                self.l = tf.floor(self.b)
-                self.u = tf.ceil(self.b)
+                self.l = tf.floor(self.b, name="l")
+                self.u = tf.ceil(self.b, name="u")
 
                 # Add weight to the lower bin based on distance from upper bin to
                 # approximate bin index b. (0--b--1. If b = 0.3. Then, assign bin
                 # 0, p(b) * 0.7 weight and bin 1, p(Z = z_b) * 0.3 weight.)
                 self.indexable_l = tf.stack(
                     (
-                        tf.reshape(self.batch_size_range, [-1, 1]) *
-                        tf.ones((1, params.NB_ATOMS), dtype=tf.int32),
+                        tf.identity(tf.reshape(self.batch_size_range, [-1, 1]) *
+                        tf.ones((1, params.NB_ATOMS), dtype=tf.int32), name="index_for_l"),
                         # BATCH_SIZE_RANGE x NB_ATOMS [[0, ...], [1, ...], ...]
                         tf.cast(self.l, dtype=tf.int32)
-                    ), axis=-1
+                    ), axis=-1, name="indexable_l"
                 )
-                self.m_l_vals = self.argmax_action_distribution * (self.u - self.b)
+                self.m_l_vals = tf.identity(self.argmax_action_distribution * (self.u - self.b),
+                                            name="values_to_add_for_m_l")
                 self.m_l = tf.scatter_nd(tf.reshape(self.indexable_l, [-1, 2]),
                                          tf.reshape(self.m_l_vals, [-1]),
-                                         tf.shape(self.l))
+                                         tf.shape(self.l), name="m_l")
 
                 # Add weight to the lower bin based on distance from upper bin to
                 # approximate bin index b.
                 self.indexable_u = tf.stack(
                     (
-                        tf.reshape(self.batch_size_range, [-1, 1]) *
-                        tf.ones((1, params.NB_ATOMS), dtype=tf.int32),
+                        tf.identity(tf.reshape(self.batch_size_range, [-1, 1]) *
+                        tf.ones((1, params.NB_ATOMS), dtype=tf.int32), name="index_for_u"),
                         # BATCH_SIZE_RANGE x NB_ATOMS [[0, ...], [1, ...], ...]
                         tf.cast(self.u, dtype=tf.int32)
-                    ), axis=-1
+                    ), axis=-1, name="indexable_u"
                 )
-                self.m_u_vals = self.argmax_action_distribution * (self.b - self.l)
+                self.m_u_vals = tf.identity(self.argmax_action_distribution * (self.b - self.l),
+                                            name="values_to_add_for_m_u")
                 self.m_u = tf.scatter_nd(tf.reshape(self.indexable_u, [-1, 2]),
                                          tf.reshape(self.m_u_vals, [-1]),
-                                         tf.shape(self.u))
+                                         tf.shape(self.u), name="m_u")
 
                 # Add Contributions of both upper and lower parts and
                 # stop gradient to not update the target network.
-                self.m = tf.stop_gradient(tf.squeeze(self.m_l + self.m_u))
+                self.m = tf.stop_gradient(tf.squeeze(self.m_l + self.m_u, name="m"))
 
                 self.weighted_m = tf.clip_by_value(self.m * self.Z,
                      clip_value_min=params.V_MIN, clip_value_max=params.V_MAX)
@@ -196,7 +199,7 @@ class C51Agent():
                 # Get target distribution.
                 self.m_placeholder = tf.placeholder(dtype=tf.float32, shape=(None, params.NB_ATOMS), name="m_placeholder")
                 self.loss_sum = -tf.reduce_sum(self.m_placeholder *
-                                           tf.log(self.action_q_dist + 1e-5), axis=-1)
+                                           tf.log(self.action_q_dist + 1e-5), axis=-1, name="loss")
 
                 self.loss = tf.reduce_mean(self.loss_sum)
 
@@ -222,7 +225,7 @@ class C51Agent():
         with tf.variable_scope("target_net"):
             self.target_net = self.Model(self.sess, num_actions=self.num_actions, train_net=False)
         self.summary = tf.summary.merge_all()
-        self.writer = tf.summary.FileWriter("TensorBoardDir")
+        self.writer = tf.summary.FileWriter(params.TENSORBOARD_FOLDER)
         init = tf.global_variables_initializer()
         self.sess.run(init)
 
@@ -244,7 +247,7 @@ class C51Agent():
             keep_checkpoint_every_n_hours=params.MIN_MODELS_EVERY_N_HOURS)
         # self.profiler = tf.profiler.Profiler(self.sess.graph)
 
-        self.beholder = Beholder("./TensorBoardDir")
+        self.beholder = Beholder(params.TENSORBOARD_FOLDER)
 
     def act(self, x):
         if np.random.random() < params.EPSILON_START - \
@@ -257,7 +260,6 @@ class C51Agent():
             return np.argmax(actions)
 
     def add(self, x, a, r, x_p, t):
-        assert(np.issubdtype(x.dtype, np.integer))
         self.experience_replay.appendleft([x, a, r, x_p, not t])
 
     def update(self, x, a, r, x_p, t):
@@ -267,12 +269,11 @@ class C51Agent():
         batch_data = random.sample(self.experience_replay, 32)
         batch_x = np.array([i[0] for i in batch_data])
         batch_a = [i[1] for i in batch_data]
-        batch_x_p = np.array([np.array(np.dstack((i[0][:, :, 1:], np.maximum(i[3], i[0][:, :, 3]))))
-                             for i in batch_data])
+        batch_x_p = np.array([i[3] for i in batch_data])
         batch_r = [i[2] for i in batch_data]
         batch_t = [i[4] for i in batch_data]
 
-        targn_summary, m, Tz, b, u, l, indexable_u, indexable_l, m_u_vals, m_l_vals, m_u, m_l = self.sess.run([self.target_net.targn_summary, self.target_net.m,
+        targn_summary, argmax_action_distribution, m, Tz, b, u, l, indexable_u, indexable_l, m_u_vals, m_l_vals, m_u, m_l = self.sess.run([self.target_net.targn_summary, self.target_net.argmax_action_distribution, self.target_net.m,
                                           self.target_net.Tz, self.target_net.b,
                                           self.target_net.u, self.target_net.l,
                                           self.target_net.indexable_u, self.target_net.indexable_l,
@@ -290,7 +291,7 @@ class C51Agent():
 
         total_loss += loss
 
-        self.beholder.update(self.sess, frame=batch_x[0], arrays=[m, Tz, b, u, l, indexable_u, indexable_l, m_u_vals, m_l_vals, m_u, m_l])
+        self.beholder.update(self.sess, frame=batch_x[0], arrays=[Tz, b, u, l, u - b, b - l, argmax_action_distribution, indexable_u[:, :, 0], indexable_l[:, :, 0], indexable_u[:, :, 1], indexable_l[:, :, 1], m_u_vals, m_l_vals, m_u, m_l, m])
 
         if params.GLOBAL_MANAGER.num_updates > 0 and \
                 params.GLOBAL_MANAGER.num_updates % params.COPY_TARGET_FREQ == 0:
@@ -299,7 +300,7 @@ class C51Agent():
 
         if params.GLOBAL_MANAGER.num_updates > 0 and \
                 params.GLOBAL_MANAGER.num_updates % params.MODEL_SAVE_FREQ == 0:
-            self.saver.save(self.sess, "Models/model",
+            self.saver.save(self.sess, params.MODELS_FOLDER + "/Model",
                             global_step=params.GLOBAL_MANAGER.num_updates,
                             write_meta_graph=(params.GLOBAL_MANAGER.num_updates <=
                                               params.MODEL_SAVE_FREQ))
