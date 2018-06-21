@@ -15,4 +15,4 @@
 
 trainingInput:
   scaleTier: CUSTOM
-  masterType: standard
+  masterType: standard_p100
