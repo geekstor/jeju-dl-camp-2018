@@ -17,11 +17,13 @@ EPSILON_FINAL_STEP = 250000  # In number of actions (since learning).
 NOOP_MAX = 30  # Execute up to NOOP_MAX noop actions at the beginning of an episode. # TODO: Use No-op Max.
 MODEL_SAVE_FREQ = 5000 # In Number of updates.
 
-BASE = "gs://jeju-dl-camp-2018-distributional-rl/"
+#FIXME: changed these paths
+job_dir = os.environ['JOB_DIR']
 
-VIDEOS_FOLDER = os.path.join(BASE, "Videos")
-MODELS_FOLDER = os.path.join(BASE, "Models")
-TENSORBOARD_FOLDER = os.path.join(BASE, "TensorBoardDir")
+VIDEOS_FOLDER = os.path.join(job_dir, "Videos")
+MODELS_FOLDER = os.path.join(job_dir, "Models")
+TENSORBOARD_FOLDER = os.path.join(job_dir, "TensorBoardDir")
+LOCAL_BEHOLDER_FOLDER = "LocalBeholderDir"
 
 EPISODE_RECORD_FREQ = 15
 REPLAY_START_SIZE = 15000

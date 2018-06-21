@@ -1,3 +1,4 @@
+import os
 import random
 from collections import deque
 
@@ -78,7 +79,10 @@ class C51Agent():
                 self.delta_z = (params.V_MAX - params.V_MIN) / (params.NB_ATOMS - 1)
                 self.Z = tf.range(start=params.V_MIN, limit=params.V_MAX + self.delta_z,
                                   delta=self.delta_z)
+
+                # FIXME: added this cast
                 self.Z = tf.cast(self.Z, tf.float32)
+
                 self.post_mul = self.q_dist * tf.reshape(self.Z, [1, 1, params.NB_ATOMS])
 
                 # Take sum to get the expected state-action values for each action
@@ -245,7 +249,8 @@ class C51Agent():
             keep_checkpoint_every_n_hours=params.MIN_MODELS_EVERY_N_HOURS)
         # self.profiler = tf.profiler.Profiler(self.sess.graph)
 
-        self.beholder = Beholder(params.TENSORBOARD_FOLDER)
+        # FIXME: Beholder does not seem to know how to interact with GCS.
+        self.beholder = Beholder(params.LOCAL_BEHOLDER_FOLDER)
 
     def act(self, x):
         if np.random.random() < params.EPSILON_START - \
@@ -291,7 +296,14 @@ class C51Agent():
 
         total_loss += loss
 
+        # FIXME: updating to local, and then upload the files to GCS, note hard coded path
         self.beholder.update(self.sess, frame=batch_x[0], arrays=[m, Tz, b, u, l, indexable_u, indexable_l, m_u_vals, m_l_vals, m_u, m_l])
+
+        for filename in tf.gfile.ListDirectory(os.path.join(params.LOCAL_BEHOLDER_FOLDER, 'plugins', 'beholder')):
+            tf.gfile.Copy(
+                os.path.join(params.LOCAL_BEHOLDER_FOLDER, 'plugins', 'beholder', filename),
+                os.path.join(params.TENSORBOARD_FOLDER, 'plugins', 'beholder', filename),
+                overwrite=True)
 
         if params.GLOBAL_MANAGER.num_updates > 0 and \
                 params.GLOBAL_MANAGER.num_updates % params.COPY_TARGET_FREQ == 0:

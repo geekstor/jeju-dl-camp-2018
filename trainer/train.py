@@ -7,6 +7,14 @@ import gym
 import numpy as np
 import tensorflow as tf
 
+# injecting with poor style, must be done before importing params
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--job-dir', type=str)
+args = parser.parse_args()
+
+os.environ['JOB_DIR'] = args.job_dir
+
 import params
 from agent import C51Agent
 
