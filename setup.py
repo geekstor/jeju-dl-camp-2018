@@ -74,6 +74,7 @@ REQUIRED_PACKAGES = [
     'numpy==1.14.2',
     'gym[atari]==0.10.4',
     'agents==1.4.0',
+    'opencv-python'
 ]
 
 setup(

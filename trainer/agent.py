@@ -78,6 +78,7 @@ class C51Agent():
                 self.delta_z = (params.V_MAX - params.V_MIN) / (params.NB_ATOMS - 1)
                 self.Z = tf.range(start=params.V_MIN, limit=params.V_MAX + self.delta_z,
                                   delta=self.delta_z)
+                self.Z = tf.cast(self.Z, tf.float32)
                 self.post_mul = self.q_dist * tf.reshape(self.Z, [1, 1, params.NB_ATOMS])
 
                 # Take sum to get the expected state-action values for each action
