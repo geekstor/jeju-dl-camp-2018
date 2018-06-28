@@ -1,3 +1,4 @@
+import tensorflow as tf
 GLOBAL_MANAGER = None
 
 EPISODIC_LIFE = False
@@ -17,14 +18,15 @@ EPSILON_END = 0.01
 EPSILON_FINAL_STEP = 250000  # In number of actions (since learning).
 NOOP_MAX = 30  # Execute up to NOOP_MAX noop actions at the beginning of an episode. # TODO: Use No-op Max.
 MODEL_SAVE_FREQ = 1000 # In Number of updates.
-VIDEOS_FOLDER = "Videos"
-MODELS_FOLDER = "Models"
-TENSORBOARD_FOLDER = "TensorBoardDir"
+VIDEOS_FOLDER = "Test\\Videos"
+MODELS_FOLDER = "Test\\Models"
+TENSORBOARD_FOLDER = "Test\\TensorBoardDir"
 EPISODE_RECORD_FREQ = 15
 REPLAY_START_SIZE = 10000
 GYM_ENV_NAME = "PongNoFrameskip-v4"
 ACTIONS_SPECIFICATION = [0, 2, 3]
-STATE_DIMENSIONS = [84, 84]
+STATE_DIMENSIONS = [84, 84, HISTORY_LEN]
+STATE_DTYPE = tf.uint8
 SHOW_IMAGES = False
 CONVOLUTIONAL_LAYERS_SPEC = [
     {"filters": 32, "kernel_size": 8, "strides": 4},
@@ -38,3 +40,5 @@ V_MAX = 10
 GRAD_NORM_CLIP = 10.
 MAX_MODELS_TO_KEEP = 10
 MIN_MODELS_EVERY_N_HOURS = 2
+NORMALIZED_STATE_NEEDED = True
+DISCOUNT_FACTOR = 0.99

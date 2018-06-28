@@ -1,0 +1,31 @@
+import tensorflow as tf
+GLOBAL_MANAGER = None
+
+MAX_TIMESTEPS = 10000  # Number of Actions to Take.
+MINIBATCH_SIZE = 32  # Per Update
+EXPERIENCE_REPLAY_SIZE = 10000  # Num. Transitions
+COPY_TARGET_FREQ = 1000  # In Number of Updates.
+UPDATE_FREQUENCY = 1  # Every u_f actions, an update is performed.
+LEARNING_RATE = 1e-3
+EPSILON_ADAM = 1e-8
+EPSILON_START = 1
+EPSILON_END = 0.01
+EPSILON_DECAY = 500  # In number of actions (since learning).
+MODEL_SAVE_FREQ = 500  # In Number of updates.
+VIDEOS_FOLDER = "Test-QRDQN\\Videos"
+MODELS_FOLDER = "Test-QRDQN\\Models"
+TENSORBOARD_FOLDER = "Test-QRDQN\\TensorBoardDir"
+EPISODE_RECORD_FREQ = 15
+REPLAY_START_SIZE = MINIBATCH_SIZE
+GYM_ENV_NAME = "CartPole-v0"
+STATE_DIMENSIONS = [4]
+STATE_DTYPE = tf.float32
+CONVOLUTIONAL_LAYERS_SPEC = []
+DENSE_LAYERS_SPEC = [32, 64, 128]
+NB_ATOMS = 51
+V_MIN = 0
+V_MAX = 1
+MAX_MODELS_TO_KEEP = 10
+MIN_MODELS_EVERY_N_HOURS = 2
+DISCOUNT_FACTOR = 0.99
+KAPPA = 1.
