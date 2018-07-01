@@ -218,7 +218,7 @@ def make_atari(env_id):
     env = MaxAndSkipEnv(env, skip=params.ACTION_REPEAT)
     return env
 
-def wrap_env(env, clip_rewards=True):
+def wrap_env(env):
     """Configure environment for DeepMind-style Atari.
     """
     if params.EPISODIC_LIFE:

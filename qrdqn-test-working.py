@@ -5,8 +5,10 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import layers
 
-env_id = "CartPole-v0"
-env = gym.make(env_id)
+env_id = "MountainCar-v0"
+from gym.wrappers import Monitor
+env = Monitor(gym.make(env_id), video_callable=lambda x: False,
+              directory="TestMountainCarVideo", force=True)
 
 gamma = 0.99
 
@@ -135,7 +137,7 @@ class QRDQN:
                                                                 self.action_placeholder: a})
 
 
-qrdqn = QRDQN(4, 2, num_quant)
+qrdqn = QRDQN(env.observation_space.shape[0], env.action_space.n, num_quant)
 
 
 def get_tau(state, action, reward, next_state, terminal):
@@ -164,7 +166,7 @@ copy_operation = tf.group(*assign_ops)
 from collections import deque
 replay_buffer = deque(maxlen=50000)
 
-optimizer = tf.train.AdamOptimizer(learning_rate=1e-3)
+optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 from baselines.common import tf_util
 train_step = tf_util.minimize_and_clip(optimizer, qrdqn.loss, var_list=train_variables)
 
@@ -187,7 +189,7 @@ def viz_dist(x):
                                  feed_dict={qrdqn.train_net.state: x}))
     l, s = np.linspace(0, 1, num_quant, retstep=True)
     for i in range(h.shape[0]):
-        plt.subplot(2, 1, i + 1)
+        plt.subplot(env.action_space.n, 1, i + 1)
         plt.bar(l - s / 2., height=h[i], width=s,
                 color="brown", edgecolor="red", linewidth=0.5, align="edge")
     plt.pause(0.1)

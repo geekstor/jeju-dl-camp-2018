@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorboard.plugins.beholder import Beholder
 
 from configuration import params_cartpole as params
-from trainer.network import DistributionalAgentNet
+from function_approximator.network import DistributionalAgentNet
 
 
 class QRAgent:
