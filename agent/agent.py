@@ -1,30 +1,45 @@
-from agent import CategoricalAgent
 from configuration import ConfigurationManager
 
 
+# Contains **Abstract** Agents. All functions are pure virtual
+# (will error if any function is not implemented)
+
 class Agent:
-    def __init__(self, cfg_parser: ConfigurationManager, *args):
-        agent_config = cfg_parser.parse_and_return_dictionary("AGENT",
-                                                              ["AGENT_TYPE"],
-                                                              keep_section=True)
-        if agent_config["AGENT_TYPE"] == "CATEGORICAL":
-            self.agent = CategoricalAgent(cfg_parser, *args)
-        elif agent_config["AGENT_TYPE"] == "QUANTILE_REGRESSION":
-            self.agent = QuantileRegressionAgent(cfg_parser)
-        else:
-            raise NotImplementedError
+    def __init__(self, cfg_parser: ConfigurationManager):
+        pass
+
+    # Uses exploration strategy/risk-sensitive strategies and returns
+    # non-greedy actions appropriately (at least with respect to the true risk-neutral
+    # expected value.) Will likely make use of this class' greedy_action method.
+    def act(self, state):
+        raise NotImplementedError
 
     def greedy_action(self, state):
-        return self.agent.greedy_action(state)
+        raise NotImplementedError
 
     def learn(self, experiences):
-        return self.agent.learn(experiences)
+        raise NotImplementedError
 
 
 class DistributionalAgent(Agent):
     def __init__(self, cfg_parser):
         super().__init__(cfg_parser)
 
-    def distribution(self):
+    # Uses exploration strategy/risk-sensitive strategies and returns
+    # non-greedy actions appropriately (at least with respect to the true risk-neutral
+    # expected value.)
+    def act(self, state):
+        raise NotImplementedError
+
+    # With Respect to whichever Distorted Distribution we might
+    # be using. Returns action.
+    def greedy_action(self, state):
+        raise NotImplementedError
+
+    def learn(self, experiences):
+        raise NotImplementedError
+
+    # Returns distribution over state-action values.
+    def distribution(self, state):
         raise NotImplementedError
 

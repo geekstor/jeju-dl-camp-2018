@@ -6,7 +6,7 @@ class Environment:
 
     def __init__(self, config_parser: ConfigurationManager):
         env_cfg = config_parser.parse_and_return_dictionary(
-            "ENVIRONMENT", Environment.required_params, keep_section=True)
+            "ENVIRONMENT", Environment.required_params)
 
         if env_cfg["ENVIRONMENT_TYPE"] == "GYM":
             import gym

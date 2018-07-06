@@ -1,39 +1,21 @@
 import random
-from collections import deque
 
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from tensorboard.plugins.beholder import Beholder
 
-from agent import DistributionalAgent
+import agent
 from configuration import ConfigurationManager
+from function_approximator.head import SoftmaxFixedAtomsDistributionalHead
 
 
-class CategoricalAgent(DistributionalAgent):
-    required_params = ["EXPERIENCE_REPLAY_SIZE", "COPY_TARGET_FREQUENCY",
-                       "UPDATE_FREQUENCY", "DISCOUNT_FACTOR", "V_MIN", "V_MAX"]
+class CategoricalAgent(agent.DistributionalAgent):
+    required_params = ["COPY_TARGET_FREQUENCY",
+                       "UPDATE_FREQUENCY", "DISCOUNT_FACTOR",
+                       "V_MIN", "V_MAX"]
 
-    def distribution(self):
-        pass
-
-    def greedy_action(self, state):
-        return super().greedy_action(state)
-
-    def learn(self, experiences):
-        return super().learn(experiences)
-
-    def __init__(self, cfg_parser: ConfigurationManager, num_actions, observation_dims):
+    def __init__(self, cfg_parser: ConfigurationManager):
         super().__init__(cfg_parser)
-
-        self.cfg = cfg_parser.parse_and_return_dictionary(
-            "AGENT", CategoricalAgent.required_params)
-
-        from function_approximator import GeneralNetwork
-        with tf.variable_scope("train_net/common"):
-            self.train_network = GeneralNetwork(cfg_parser, num_actions, observation_dims, True)
-        with tf.variable_scope("target_net/common"):
-            self.target_network = GeneralNetwork(cfg_parser, num_actions, observation_dims)
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -41,48 +23,49 @@ class CategoricalAgent(DistributionalAgent):
         config.inter_op_parallelism_threads = 16
         self.sess = tf.Session(config=config)
 
-        self.experience_replay = deque(maxlen=self.cfg["EXPERIENCE_REPLAY_SIZE"])
+        self.cfg_parser = cfg_parser
+
+        self.num_updates = 0
+
+        self.cfg = cfg_parser.parse_and_return_dictionary(
+            "AGENT", CategoricalAgent.required_params)
+
+        from function_approximator import GeneralNetwork
+        with tf.variable_scope("train_net"):
+            self.train_network_base = GeneralNetwork(cfg_parser)
+            self.train_network = SoftmaxFixedAtomsDistributionalHead(
+                cfg_parser, self.train_network_base)
+        with tf.variable_scope("target_net"):
+            self.target_network_base = GeneralNetwork(cfg_parser)
+            self.target_network = SoftmaxFixedAtomsDistributionalHead(
+                cfg_parser, self.target_network_base)
+
+        from util.util import get_copy_op
+        self.copy_operation = get_copy_op("train_net",
+                                          "target_net")
+
+        from memory.experience_replay import ExperienceReplay
+        self.experience_replay = ExperienceReplay(cfg_parser)
+
         self.build_networks()
-        self.summary = tf.summary.merge_all()
-        self.writer = tf.summary.FileWriter(params.TENSORBOARD_FOLDER)
+
         init = tf.global_variables_initializer()
         self.sess.run(init)
 
-        train_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='train_net/common')
-        target_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_net/common')
-
-        assign_ops = []
-        for main_var, target_var in zip(sorted(train_variables, key=lambda x : x.name),
-                                        sorted(target_variables, key=lambda x: x.name)):
-            if(main_var.name.replace("train_net", "") == target_var.name.replace("target_net", "")):
-                assign_ops.append(tf.assign(target_var, main_var))
-
-        self.copy_operation = tf.group(*assign_ops)
-
         self.sess.run(self.copy_operation)
 
-        self.saver = tf.train.Saver(max_to_keep=params.MAX_MODELS_TO_KEEP,
-                                    keep_checkpoint_every_n_hours=params.MIN_MODELS_EVERY_N_HOURS)
-
-        self.beholder = Beholder(params.TENSORBOARD_FOLDER)
-
-
     def build_networks(self):
-        z, delta_z = np.linspace(self.cfg["V_MIN"], self.cfg["V_MAX"],
+        Z, delta_z = np.linspace(self.cfg["V_MIN"], self.cfg["V_MAX"],
                                  self.train_network.cfg["NB_ATOMS"],
                                  retstep=True)
-        self.Z = tf.constant(z, dtype=tf.float32, name="Z")
-        self.delta_z = tf.constant(delta_z, dtype=tf.float32, name="Z_step")
+        Z = tf.constant(Z, dtype=tf.float32, name="Z")
+        delta_z = tf.constant(delta_z, dtype=tf.float32, name="Z_step")
 
         for var_scope, graph in {"train_net": self.train_network,
                                  "target_net": self.target_network}.items():
             with tf.variable_scope(var_scope):
-                # State-Action-Value Distributions (per action) using logits
-                graph.q_dist = tf.nn.softmax(
-                    graph.y, name="state_action_value_dist", axis=-1
-                )
-
-                graph.post_mul = tf.reduce_sum(graph.y * self.Z, axis=-1)
+                graph.post_mul = tf.reduce_sum(graph.y * Z,
+                                               axis=-1)
 
                 # Take sum to get the expected state-action values for each action
                 # graph.actions = tf.reduce_sum(graph.post_mul, axis=2,
@@ -92,137 +75,158 @@ class CategoricalAgent(DistributionalAgent):
                                                 output_type=tf.int32,
                                                 name="argmax_action")
 
-        obj = self.target_network
-        with tf.variable_scope("target_net"):
-            # Find argmax action given expected state-action values at next state
-            obj.batch_size_range = tf.range(start=0, limit=tf.shape(obj.x)[0])
+        batch_size_range = tf.range(tf.shape(self.target_network_base.x)[0])
+        # Get it's corresponding distribution (this is used for
+        # computing the target distribution)
+        self.argmax_action_distribution = tf.gather_nd(
+            self.target_network.y,
+            tf.stack(
+                (batch_size_range, self.target_network.argmax_action),
+                axis=1, name="index_for_argmax_action_q_dist"
+            ), name="gather_nd_for_batch_argmax_action_q_dists"
+        )  # Axis = 1 => [N, 2]
 
-            # Get it's corresponding distribution (this is used for
-            # computing the target distribution)
-            cat_idx = tf.transpose(tf.reshape(tf.concat([obj.batch_size_range,
-                                                         obj.argmax_action],
-                                                        axis=0), [2, tf.shape(obj.x)[0]]))
-            p_best = tf.gather_nd(obj.q_dist, cat_idx)
+        # Placeholder for reward and terminal
+        self.r = tf.placeholder(name="reward", dtype=tf.float32, shape=(None,))
+        self.t = tf.placeholder(name="terminal", dtype=tf.uint8, shape=(None,))
+        # TODO: Optimize memory uint8 -> bool (check if casting works to float)
 
-            # Placeholder for reward and terminal
-            obj.r = tf.placeholder(name="reward", dtype=tf.float32, shape=(None,))
-            obj.t = tf.placeholder(name="terminal", dtype=tf.uint8, shape=(None,))
-            # TODO: Optimize memory uint8 -> bool (check if casting works to float)
+        self.Tz = tf.clip_by_value(tf.reshape(self.r, [-1, 1]) + self.cfg["DISCOUNT_FACTOR"] *
+                                   tf.cast(tf.reshape(self.t, [-1, 1]), tf.float32) * Z,
+                                   clip_value_min=self.cfg["V_MIN"],
+                                   clip_value_max=self.cfg["V_MAX"],
+                                   name="Tz")
 
-            big_z = tf.reshape(tf.tile(self.Z, [self.cfg["MINIBATCH_SIZE"]]),
-                               [self.cfg["MINIBATCH_SIZE"],
-                                self.train_network.cfg["NB_ATOMS"]])
-            big_r = tf.transpose(tf.reshape(tf.tile(obj.r, [self.train_network.cfg["NB_ATOMS"]]),
-                                            [self.train_network.cfg["NB_AROMS"], self.cfg["MINIBATCH_SIZE"]]))
+        # Compute bin number (can be floating point/integer).
+        self.b = tf.identity((self.Tz - self.cfg["V_MIN"]) / delta_z, name="b")
 
-            # Compute Tz (Bellman Operator) on atom of expected state-action-value
-            # r + gamma * z clipped to [V_min, V_max]
-            obj.Tz = tf.clip_by_value(big_r + params.DISCOUNT_FACTOR *
-                                      tf.einsum('ij,i->ij', big_z,
-                                                tf.cast(obj.t, tf.float32)),
-                                      self.cfg["V_MIN"], self.cfg["V_MAX"])
+        # Lower and Upper Bins.
+        self.l = tf.floor(self.b, name="l")
+        self.u = tf.ceil(self.b, name="u")
 
-            big_Tz = tf.reshape(tf.tile(obj.Tz, [1, self.train_network.cfg["NB_ATOMS"]]), [-1, self.train_network.cfg["NB_ATOMS"],
-                                                                                          self.train_network.cfg[
-                                                                                              "NB_ATOMS"]])
-            big_z = tf.reshape(tf.tile(self.Z, [self.cfg["MINIBATCH_SIZE"]]),
-                               [self.cfg["MINIBATCH_SIZE"],
-                                self.train_network.cfg["NB_ATOMS"]])
-            big_big_z = tf.reshape(tf.tile(big_z, [1, self.train_network.cfg["NB_ATOMS"]]),
-                                   [-1, self.train_network.cfg["NB_ATOMS"], self.train_network.cfg["NB_ATOMS"]])
+        # Add weight to the lower bin based on distance from upper bin to
+        # approximate bin index b. (0--b--1. If b = 0.3. Then, assign bin
+        # 0, p(b) * 0.7 weight and bin 1, p(Z = z_b) * 0.3 weight.)
+        self.indexable_l = tf.stack(
+            (
+                tf.identity(tf.reshape(batch_size_range, [-1, 1]) *
+                            tf.ones((1, tf.shape(self.target_network.y)[-1]),
+                                    dtype=tf.int32), name="index_for_l"),
+                # BATCH_SIZE_RANGE x NB_ATOMS [[0, ...], [1, ...], ...]
+                tf.cast(self.l, dtype=tf.int32)
+            ), axis=-1, name="indexable_l"
+        )
+        self.m_l_vals = tf.identity(self.argmax_action_distribution * (1 - (self.b - self.l)),
+                                    name="values_to_add_for_m_l")
+        self.m_l = tf.scatter_nd(tf.reshape(self.indexable_l, [-1, 2]),
+                                 tf.reshape(self.m_l_vals, [-1]),
+                                 tf.shape(self.l), name="m_l")
 
-            Tzz = tf.abs(big_Tz - tf.transpose(big_big_z, [0, 2, 1])) / self.delta_z
-            Thz = tf.clip_by_value(1 - Tzz, 0, 1)
+        # Add weight to the lower bin based on distance from upper bin to
+        # approximate bin index b.
+        self.indexable_u = tf.stack(
+            (
+                tf.identity(tf.reshape(batch_size_range, [-1, 1]) *
+                            tf.ones((1, tf.shape(self.target_network.y)[-1]),
+                                    dtype=tf.int32), name="index_for_u"),
+                # BATCH_SIZE_RANGE x NB_ATOMS [[0, ...], [1, ...], ...]
+                tf.cast(self.u, dtype=tf.int32)
+            ), axis=-1, name="indexable_u"
+        )
+        self.m_u_vals = tf.identity(self.argmax_action_distribution * (self.b - self.l),
+                                    name="values_to_add_for_m_u")
+        self.m_u = tf.scatter_nd(tf.reshape(self.indexable_u, [-1, 2]),
+                                 tf.reshape(self.m_u_vals, [-1]),
+                                 tf.shape(self.u), name="m_u")
 
-            obj.m = tf.einsum('ijk,ik->ij', Thz, p_best)
+        # Add Contributions of both upper and lower parts and
+        # stop gradient to not update the target network.
+        self.m = tf.stop_gradient(tf.squeeze(self.m_l + self.m_u, name="m"))
 
-        obj = self.train_network
-        with tf.variable_scope("train_net"):
-            obj.batch_size_range = tf.range(start=0, limit=tf.shape(obj.x)[0])
+        batch_size_range = tf.range(start=0,
+                                        limit=tf.shape(self.train_network_base.x)[0])
 
-            # Given you took this action.
-            obj.action_placeholder = tf.placeholder(name="action", dtype=tf.int32, shape=[None, ])
+        # Given you took this action.
+        self.action_placeholder = tf.placeholder(name="action",
+                                                 dtype=tf.int32, shape=[None, ])
 
-            cat_idx = tf.transpose(tf.reshape(tf.concat([obj.batch_size_range,
-                                                         obj.action_placeholder], axis=0), [2, tf.shape(obj.x)[0]]))
-            p_t_next = tf.gather_nd(obj.q_dist, cat_idx)
+        # Compute Q-Dist. for the action.
+        self.action_q_dist = tf.gather_nd(self.train_network.y,
+                                          tf.stack((batch_size_range,
+                                                    self.action_placeholder),
+                                                   axis=1))
 
-            # Get target distribution.
-            obj.loss_sum = tf.reduce_sum(-1 * self.target_net.m *
-                                       tf.log(p_t_next), axis=-1, name="loss")
+        self.loss_sum = -tf.reduce_sum(self.m *
+                                       tf.log(self.action_q_dist + 1e-5), axis=-1, name="loss")
 
-            obj.loss = tf.reduce_mean(obj.loss_sum)
+        self.loss = tf.reduce_mean(self.loss_sum)
 
-            from optimizer.optimizer import get_optimizer
-            self.train_step = get_optimizer(None, obj.loss,
-                                            tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                                     scope='train_net/common'))
+        from optimizer.optimizer import get_optimizer
+        self.train_step = get_optimizer(self.cfg_parser, self.loss,
+                                        tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
+                                                              scope='train_net'))
+
+    def distribution(self, state):
+        return self.sess.run(fetches=[self.train_network.y],
+                             feed_dict={self.train_network_base.x: state})
+
+    def greedy_action(self, state):
+        return self.sess.run(fetches=self.train_network.argmax_action,
+                             feed_dict={self.train_network_base.x: state})
+
+    def learn(self, experiences):
+        batch_x = np.array([i[0] for i in experiences])
+        batch_a = [i[1] for i in experiences]
+        batch_x_p = np.array([i[3] for i in experiences])
+        batch_r = [i[2] for i in experiences]
+        batch_t = [i[4] for i in experiences]
+
+        return self.sess.run([self.train_step],
+                             feed_dict={self.train_network_base.x: batch_x,
+                                        self.action_placeholder: batch_a,
+                                        self.target_network_base.x: batch_x_p,
+                                        self.r: batch_r,
+                                        self.t: batch_t})
 
     def act(self, x):
-        pass
+        if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
+            return [self.train_network.act_to_send(
+                random.choice(self.train_network.actions)
+            )]
+        else:
+            return self.train_network.act_to_send(self.greedy_action([x]))
 
     def viz_dist(self, x):
         # Plot
-        h = np.squeeze(self.sess.run(fetches=self.train_network.q_dist,
-                       feed_dict={self.train_network.x: x}))
+        h = np.squeeze(self.sess.run(fetches=self.train_network.y,
+                       feed_dict={self.train_network_base.x: x}))
         l, s = np.linspace(self.cfg["V_MIN"],
                            self.cfg["V_MAX"],
-                           self.cfg["NB_ATOMS"],
+                           self.train_network.cfg["NB_ATOMS"],
                            retstep=True)
+
         for i in range(h.shape[0]):
-            plt.subplot(self.num_actions, 1, i + 1)
+            plt.subplot(len(self.train_network.actions), 1, i + 1)
             plt.bar(l - s/2., height=h[i], width=s,
                     color="brown", edgecolor="red", linewidth=0.5, align="edge")
+
         plt.pause(0.1)
         plt.gcf().clear()
 
     def add(self, x, a, r, x_p, t):
-        self.experience_replay.appendleft([x, a, r, x_p, not t])
+        self.experience_replay.add([x, a, r, x_p, not t])
 
     def update(self, x, a, r, x_p, t):
+        self.num_updates += 1
         self.add(x, a, r, x_p, t)
 
-        total_loss = 0
-        batch_data = random.sample(self.experience_replay, self.cfg["MINIBATCH_SIZE"])
-        batch_x = np.array([i[0] for i in batch_data])
-        batch_a = [i[1] for i in batch_data]
-        batch_x_p = np.array([i[3] for i in batch_data])
-        batch_r = [i[2] for i in batch_data]
-        batch_t = [i[4] for i in batch_data]
-
-        m, loss, _ = self.sess.run([self.target_network.m, self.train_network.loss, self.train_network.train_step],
-                                           feed_dict={self.train_network.x: batch_x,
-                                           self.train_network.action_placeholder:
-                                               batch_a, self.target_network.x: batch_x_p,
-                                            self.target_network.r: batch_r, self.target_network.t: batch_t})
-
-        #self.writer.add_summary(targn_summary, params.GLOBAL_MANAGER.num_updates)
-        #self.writer.add_summary(trnn_summary, params.GLOBAL_MANAGER.num_updates)
-
-        total_loss += loss
-
-        self.beholder.update(self.sess, frame=batch_x[0], arrays=[m])
+        if self.experience_replay.size() > self.cfg["MINIBATCH_SIZE"]:
+            self.learn(self.experience_replay.sample(self.cfg["MINIBATCH_SIZE"]))
 
         if self.num_updates > 0 and \
             self.num_updates % self.cfg["COPY_TARGET_FREQ"] == 0:
             self.sess.run(self.copy_operation)
-            print("Copied to target. Current Loss: ", total_loss)
-
-        if self.num_updates > 0 and \
-                self.num_updates % self.MODEL_SAVE_FREQ == 0:
-            self.saver.save(self.sess, params.MODELS_FOLDER + "/Model",
-                            global_step=params.GLOBAL_MANAGER.num_updates,
-                            write_meta_graph=True)
-
-
-# # QR-DQN
-# u = self.m_placeholder - self.action_q_dist
-# tau = [(2*i - 1)/(2*N) for i in range(1, N + 1)]
-# kappa = tf.constant(1., dtype=tf.float32)
-# one_half_kappa_squared = tf.constant(0.5 * kappa * tf.square(kappa))
-# l_kappa = tf.where(tf.less_equal(u, kappa), x=0.5*tf.square(u),
-#                    y=kappa * tf.abs(u) - one_half_kappa_squared)
-# rho_k_tau = tf.where(tf.less(u, 0.), tf.abs(tau - 1.), tf.abs(tau)) * l_kappa
-#
-#
+            print("Copied.")
+            assert(np.allclose(self.sess.run(self.train_network.y, feed_dict={self.train_network_base.x: [x]}),
+                   self.sess.run(self.target_network.y, feed_dict={self.target_network_base.x: [x]})))
 
