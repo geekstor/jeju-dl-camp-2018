@@ -6,7 +6,8 @@ import numpy as np
 from gym import spaces
 
 cv2.ocl.setUseOpenCL(False)
-import params
+from configuration import params_atari as params
+
 
 class NoopResetEnv(gym.Wrapper):
     def __init__(self, env, noop_max=30):
@@ -217,7 +218,7 @@ def make_atari(env_id):
     env = MaxAndSkipEnv(env, skip=params.ACTION_REPEAT)
     return env
 
-def wrap_env(env, clip_rewards=True):
+def wrap_env(env):
     """Configure environment for DeepMind-style Atari.
     """
     if params.EPISODIC_LIFE:
@@ -232,3 +233,5 @@ def wrap_env(env, clip_rewards=True):
     if params.HISTORY_LEN > 0:
         env = FrameStack(env, params.HISTORY_LEN)
     return env
+
+
