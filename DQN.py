@@ -7,7 +7,7 @@ from gym.wrappers import Monitor
 from tensorflow import layers
 
 env_id = "CartPole-v0"
-env = Monitor(gym.make(env_id), directory="IQN",
+env = Monitor(gym.make(env_id), directory="DQN",
               video_callable=lambda ep_id: ep_id % 100 == 0, force=True)
 
 # TODO: Try SoftMax exploration.
@@ -31,30 +31,14 @@ class IQNNetwork:
             self.outs.append(layers.dense(inputs=self.state, units=64,
                                           activation=tf.nn.relu, trainable=trainable))
 
-            # Size [Batch Size, Feature Vec. Size]
-
-            self.tau = tf.random_uniform(shape=[tf.shape(self.state)[0], N],
-                                    minval=0, maxval=1,
-                                    dtype=tf.float32)
-
-            phi = tf.layers.dense(inputs=tf.cos(tf.einsum('bn,j->bnj', self.tau,
-                                                          tf.range(64, dtype=tf.float32)) * 3.14159265), units=64,
-                            activation=tf.nn.relu)
-
-            mul = tf.einsum('bnj,bj->bnj', phi, self.outs[-1])
-
-            self.q_dist = tf.transpose(
-                tf.layers.dense(inputs=mul, units=num_actions, activation=None),
-                perm=[0, 2, 1]
-            )
-
-            self.q = tf.reduce_mean(self.q_dist, axis=-1)
+            self.q = tf.layers.dense(inputs=self.outs[-1], units=num_actions,
+                                          activation=None)
 
             self.out = tf.cast(tf.squeeze(tf.argmax(self.q, axis=-1)), dtype=tf.int32)
 
 # net = IQNNetwork("test", 2, 2, 8, True)
 # sess.run(tf.global_variables_initializer())
-# print(sess.run(net.q_dist, feed_dict={net.state: np.array([[0, 1], [0.3, 0.7]])}))
+# print(sess.run(net.q, feed_dict={net.state: np.array([[0, 1], [0.3, 0.7]])}))
 
 class IQN:
     def __init__(self, num_inputs, num_actions):
@@ -72,33 +56,25 @@ class IQN:
         self.flat_indices_for_argmax_action_target_net = tf.stack([self.batch_dim_range,
                                                                    self.target_net.out], axis=1)
 
-        self.sampled_return_of_greedy_actions_target_net = \
-            tf.gather_nd(self.target_net.q_dist,
+        self.q_greedy_actions_target_net = \
+            tf.gather_nd(self.target_net.q,
                          self.flat_indices_for_argmax_action_target_net)
 
         self.r = tf.placeholder(shape=[None,], dtype=tf.float32)
         self.t = tf.placeholder(shape=[None,], dtype=tf.uint8)
 
-        self.expected_quantiles = self.r[:, tf.newaxis] + gamma * \
-                                  tf.cast(self.t[:, tf.newaxis], dtype=tf.float32) * \
-                                  self.sampled_return_of_greedy_actions_target_net
+        self.expected_q = self.r + gamma * \
+                                  tf.cast(self.t, dtype=tf.float32) * \
+                                  self.q_greedy_actions_target_net
 
         # OPS. for computing dist. from current train net
         self.action_placeholder = tf.placeholder(dtype=tf.int32, shape=[None,])
         self.flat_indices_chosen_actions = tf.stack([self.batch_dim_range,
                                              self.action_placeholder], axis=1)
-        self.dist_of_chosen_actions = tf.gather_nd(self.train_net.q_dist,
+        self.q_of_chosen_actions = tf.gather_nd(self.train_net.q,
                                                    self.flat_indices_chosen_actions)
 
-        u = self.expected_quantiles[:, tf.newaxis, :] - self.dist_of_chosen_actions[:, :, tf.newaxis]
-        k = 1
-        huber_loss = 0.5 * tf.square(tf.clip_by_value(tf.abs(u), 0.0, k))
-        huber_loss += k * (tf.abs(u) - tf.clip_by_value(tf.abs(u), 0.0, k))
-        quantile_loss = tf.abs(tf.reshape(tf.tile(self.train_net.tau, [1, tf.shape(
-            self.target_net.tau)[1]]), [-1, tf.shape(self.train_net.tau)[1],
-                                     tf.shape(self.target_net.tau)[1]]) - tf.cast((u < 0), tf.float32)) *\
-                               huber_loss
-        self.loss = tf.reduce_mean(quantile_loss)
+        self.loss = tf.losses.huber_loss(self.expected_q, self.q_of_chosen_actions)
 
     def act(self, x, eps):
         if random.random() < eps:
