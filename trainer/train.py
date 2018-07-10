@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 if len(sys.argv) < 2:
     assert "Configuration File Required."
@@ -34,41 +35,47 @@ os.makedirs(parent_dir / str(start_time))
 from shutil import copyfile
 copyfile(config_file_loc, parent_dir / str(start_time) / "config.json")
 
+if "AVERAGE_REWARD_WINDOW" not in cfg_manager["MANAGER"]:
+    cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"] = 0
+window_start_bound = -cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"]
 
 class Manager():
     def __init__(self, env, agent):
         self.env = env
         self.agent = agent
+
+        # Used for recording episodes.
         self.render_buffer = []
 
     def run(self):
-        ep_id = 0
-        steps = 0
-        from collections import deque
-        total_r = deque(maxlen=10)
-        while True:
-            x = self.env.reset()
-            done = False
-            in_ep_r = 0
-            while not done:
-                if ep_id % 20 == 0 and ep_id > 0:
-                    self.render_buffer.append(
-                        agent.viz_dist([x], self.env.render(mode="rgb_array"))
-                    )
+        ep_num = 1
+        ep_steps = 0
+        ep_r = 0
+        x = self.env.reset()
+        for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
+            #if ep_id % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
+            #    self.render_buffer.append(
+            #        agent.viz([x], self.env.render(mode="rgb_array"))
+            #    )
 
-                a = agent.act(x)
-                x_prime, r, done, _ = self.env.step(a)
+            a = agent.act(x)
+            x_prime, r, done, _ = self.env.step(a)
+            agent.update(x, a, r, x_prime, done)
+            ep_r += r
+            x = x_prime
 
-                agent.update(x, a, r, x_prime, done)
-                in_ep_r += r
-                steps += 1
+            if done:
+                total_r.append(ep_r)
+                print("Episode Num:.", ep_num,
+                      "Steps:", steps,
+                      "Episode Reward: ", ep_r,
+                      "Mean Reward: ", np.mean(total_r[window_start_bound:]))
 
-                x = x_prime
+                x = self.env.reset()
+                ep_num += 1
+                ep_steps = 0
+                ep_r = 0
 
-            total_r.append(in_ep_r)
-            import numpy as np
-            print(ep_id, steps, total_r[-1], np.mean(total_r))
-            ep_id += 1
             if len(self.render_buffer) > 0:
                 from moviepy.editor import ImageSequenceClip
                 clip = ImageSequenceClip(self.render_buffer, fps=5)
