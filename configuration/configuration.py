@@ -16,3 +16,11 @@ class ConfigurationManager:
                 for param in required_params)
 
         return this_section
+
+    def __getitem__(self, key):
+
+
+        return self.parsed_json[key]
+
+    def __setitem__(self, key, value):
+        self.parsed_json[key] = value
