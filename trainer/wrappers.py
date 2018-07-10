@@ -224,7 +224,8 @@ def wrap_env(env, cfg):
     """
     if cfg["EPISODIC_LIFE"]:
         env = EpisodicLifeEnv(env)
-    if 'FIRE' in env.unwrapped.get_action_meanings():
+    if hasattr(env.unwrapped, "get_action_meaning") and \
+            'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
     env = WarpFrame(env)
     if cfg["SCALED_FLOAT"]:
