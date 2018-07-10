@@ -39,5 +39,10 @@
     "OPTIMIZER_TYPE": "ADAM",
     "LEARNING_RATE": 1e-2,
     "EPSILON": 1e-8
+  },
+  "MANAGER": {
+    "NUM_TRAIN_STEPS": 20000,
+    "EPISODE_RECORD_FREQ": 1,
+    "AVERAGE_REWARD_WINDOW": 10
   }
 }
