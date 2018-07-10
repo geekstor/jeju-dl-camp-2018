@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 if len(sys.argv) < 2:
     assert "Configuration File Required."
@@ -34,53 +35,55 @@ os.makedirs(parent_dir / str(start_time))
 from shutil import copyfile
 copyfile(config_file_loc, parent_dir / str(start_time) / "config.json")
 
+if "AVERAGE_REWARD_WINDOW" not in cfg_manager["MANAGER"]:
+    cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"] = 0
+window_start_bound = -cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"]
 
 class Manager():
     def __init__(self, env, agent):
         self.env = env
         self.agent = agent
+
+        # Used for recording episodes.
         self.render_buffer = []
 
     def run(self):
-        ep_id = 0
-        steps = 0
-        from collections import deque
-        total_r = deque(maxlen=10)
-        while True:
-            x = self.env.reset()
-            print('x shape', x.shape)
-            done = False
-            in_ep_r = 0
-            while not done:
-                if ep_id % 1 == 0 and ep_id > 0:
-                    self.render_buffer.append(
-                        agent.viz_dist([x], self.env.render(mode="rgb_array"))
-                    )
+        ep_num = 1
+        ep_steps = 0
+        ep_r = 0
+        x = self.env.reset()
+        total_r = []
+        for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
+            if ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
+                self.render_buffer.append(
+                    agent.viz([x], self.env.render(mode="rgb_array"))
+                )
 
-                a = agent.act(x)
-                x_prime, r, done, _ = self.env.step(a)
+            a = agent.act(x)
+            x_prime, r, done, _ = self.env.step(a)
+            agent.update(x, a, r, x_prime, done)
+            ep_steps += 1
+            ep_r += r
+            x = x_prime
 
-                agent.update(x, a[0], r, x_prime, done)
-                #agent.update(x, a, r, x_prime, done)
-                in_ep_r += r
-                steps += 1
+            if done:
+                total_r.append(ep_r)
+                print("Episode Num:.", ep_num,
+                      "Steps:", ep_steps,
+                      "Episode Reward: ", ep_r,
+                      "Mean Reward: ", np.mean(total_r[window_start_bound:]) if
+                      len(total_r > abs(window_start_bound)) else "Not Yet Enough Ep.")
 
-                x = x_prime
+                x = self.env.reset()
+                ep_num += 1
+                ep_steps = 0
+                ep_r = 0
 
-            total_r.append(in_ep_r)
-            import numpy as np
-            print(ep_id, steps, total_r[-1], np.mean(total_r))
-            ep_id += 1
-            if len(self.render_buffer) > 0:
-                from moviepy.editor import ImageSequenceClip
-                clip = ImageSequenceClip(self.render_buffer, fps=5)
-                clip.write_gif(str(start_time) + '/ep' + str(ep_id) + '.gif', fps=5)
-                self.render_buffer = []
+                if len(self.render_buffer) > 0:
+                    from moviepy.editor import ImageSequenceClip
+                    clip = ImageSequenceClip(self.render_buffer, fps=5)
+                    clip.write_gif(str(parent_dir / str(start_time)) + '/ep' + str(ep_num) + '.gif', fps=5)
+                    self.render_buffer = []
 
-#agent = QRAgent() # TODO: Start with a base Agent class and
-                  # TODO: inherit for all agents. Set Agent
-                  # TODO: in config.
-#m.train(agent)
-#show()
 m = Manager(e, agent)
 m.run()

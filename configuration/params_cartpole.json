@@ -32,5 +32,11 @@
     "LEARNING_RATE": 3e-4,
     "EPSILON": 1e-8,
     "GRADIENT_CLIPPING": 40
+  },
+
+  "MANAGER": {
+    "NUM_TRAIN_STEPS": 20000,
+    "SAVE_AGENT_FREQ": 1000,
+    "EPISODE_RECORD_FREQ": 1
   }
 }

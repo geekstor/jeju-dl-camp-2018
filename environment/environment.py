@@ -19,6 +19,8 @@ class Environment:
             gym_env_cfg = config_parser.parse_and_return_dictionary(
                 "ENVIRONMENT", gym_env_required_params)
             self.env = retro.make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"])
+            from trainer.wrappers import wrap_env
+            wrap_env(self.env, gym_env_cfg)
         else:
             raise NotImplementedError
 

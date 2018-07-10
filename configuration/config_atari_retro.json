@@ -1,13 +1,16 @@
 {
   "ENVIRONMENT": {
     "ENVIRONMENT_TYPE": "GYM-RETRO",
-    "GYM_ENV_NAME": "SonicTheHedgehog-Genesis",
-    "GYM_ENV_LEVEL": "LabyrinthZone.Act1"
+    "GYM_ENV_NAME": "Boxing-Atari2600",
+    "GYM_ENV_LEVEL": "Start",
+    "EPISODIC_LIFE": 0,
+    "HISTORY_LEN": 4,
+    "SCALED_FLOAT": 1,
+    "CLIP_REWARDS": 0
   },
 
   "NETWORK": {
     "CONVOLUTIONAL_LAYERS_SPEC": [
-
     {"filters": 32, "kernel_size": 8, "strides": 4},
     {"filters": 64, "kernel_size": 4, "strides": 2},
     {"filters": 64, "kernel_size": 3, "strides": 1} ]

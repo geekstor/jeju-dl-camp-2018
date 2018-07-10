@@ -120,10 +120,6 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         batch_x_p = np.array([i[3] for i in experiences])
         batch_r = [i[2] for i in experiences]
         batch_t = [i[4] for i in experiences]
-        #print("batch rat", len(batch_r), batch_r)
-        #print("batch rat", len(batch_a), batch_a)
-        #print("batch rat", len(batch_t), batch_t)
-        #print( batch_r.shape, batch_a.shape, batch_t.shape)
 
         return self.sess.run([self.train_step],
                              feed_dict={self.train_network_base.x: batch_x,
@@ -140,22 +136,35 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         else:
             return [self.train_network.act_to_send(self.greedy_action([x])[0])]
 
-    def viz_dist(self, x):
+    def viz(self, x, rgb_x):
         # Plot
         h = np.squeeze(self.sess.run(fetches=self.train_network.y,
-                       feed_dict={self.train_network_base.x: x}))
-        l, s = np.linspace(self.cfg["V_MIN"],
-                           self.cfg["V_MAX"],
+                                     feed_dict={self.train_network_base.x: x}))
+
+        plt.subplot2grid((h.shape[0], h.shape[0]), (0, 0), colspan=1, rowspan=h.shape[0])
+        # plt.subplot(len(self.train_network.actions), 2, [1, 3])
+        from scipy.misc import imresize
+        plt.imshow(imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1] * 10]),
+                   aspect="auto", interpolation="nearest")
+
+        l, s = np.linspace(0,
+                           1,
                            self.train_network.cfg["NB_ATOMS"],
                            retstep=True)
 
         for i in range(h.shape[0]):
-            plt.subplot(len(self.train_network.actions), 1, i + 1)
-            plt.bar(l - s/2., height=h[i], width=s,
+            plt.subplot2grid((h.shape[0], h.shape[0]), (i, 1), colspan=1, rowspan=1)
+            # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1))
+            plt.bar(l - s / 2., height=h[i], width=s,
                     color="brown", edgecolor="red", linewidth=0.5, align="edge")
 
         plt.pause(0.1)
         plt.gcf().clear()
+
+        data = np.fromstring(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
+        data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
+
+        return data
 
     def add(self, x, a, r, x_p, t):
         self.experience_replay.add([x, a, r, x_p, not t])
@@ -173,4 +182,3 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
             print("Copied.")
             assert(np.allclose(self.sess.run(self.train_network.y, feed_dict={self.train_network_base.x: [x]}),
                    self.sess.run(self.target_network.y, feed_dict={self.target_network_base.x: [x]})))
-

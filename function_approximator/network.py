@@ -44,7 +44,6 @@ class GeneralNetwork:
                     activation=tf.nn.relu
                 )
             )
-            print(self.conv_outputs[-1].shape.dims)
 
         if len(self.cfg["CONVOLUTIONAL_LAYERS_SPEC"]) > 0:
             # Flatten
@@ -65,7 +64,7 @@ class GeneralNetwork:
                     name="fc_layer_" + str(len(self.dense_outputs) + 1),
                     inputs=last_out if
                     len(self.dense_outputs) == 0 else
-                    self.dense_outputs[-1], 
+                    self.dense_outputs[-1],
                     units=DENSE_LAYER_SPEC, activation=tf.nn.relu
                 )
             )
