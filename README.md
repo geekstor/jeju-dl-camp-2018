@@ -53,7 +53,7 @@ Authors: Valliappa Chockalingam and Rishab Gargeya
   * Network: Algorithmic Function Approximator. Generic MLP / CNN implementation.
   * Types: Categorical DQN, Quantile Regression DQN, Implicit Quantile Networks (IQN)
 
-
+* environment.yml : dependencies list
 
 
 
