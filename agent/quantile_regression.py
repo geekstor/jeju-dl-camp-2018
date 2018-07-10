@@ -120,6 +120,10 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         batch_x_p = np.array([i[3] for i in experiences])
         batch_r = [i[2] for i in experiences]
         batch_t = [i[4] for i in experiences]
+        #print("batch rat", len(batch_r), batch_r)
+        #print("batch rat", len(batch_a), batch_a)
+        #print("batch rat", len(batch_t), batch_t)
+        #print( batch_r.shape, batch_a.shape, batch_t.shape)
 
         return self.sess.run([self.train_step],
                              feed_dict={self.train_network_base.x: batch_x,

@@ -44,6 +44,7 @@ class GeneralNetwork:
                     activation=tf.nn.relu
                 )
             )
+            print(self.conv_outputs[-1].shape.dims)
 
         if len(self.cfg["CONVOLUTIONAL_LAYERS_SPEC"]) > 0:
             # Flatten

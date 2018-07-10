@@ -48,6 +48,7 @@ class Manager():
         total_r = deque(maxlen=10)
         while True:
             x = self.env.reset()
+            print('x shape', x.shape)
             done = False
             in_ep_r = 0
             while not done:
@@ -59,7 +60,8 @@ class Manager():
                 a = agent.act(x)
                 x_prime, r, done, _ = self.env.step(a)
 
-                agent.update(x, a, r, x_prime, done)
+                agent.update(x, a[0], r, x_prime, done)
+                #agent.update(x, a, r, x_prime, done)
                 in_ep_r += r
                 steps += 1
 
