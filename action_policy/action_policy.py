@@ -6,7 +6,9 @@ from configuration import ConfigurationManager
 
 # TODO: Get greedy action (TF) op. and return appropriate action (TF) op. Instead of
 # running things in numpy/CPU.
-    
+
+# TODO: Use Policy!
+
 
 class Policy:
     required_params = ["POLICY_TYPE", "EXPECTATION_FUNCTION"]
@@ -56,4 +58,3 @@ class EpsilonGreedy:
             return np.random.randint(0, num_actions)
         else:
             return
-

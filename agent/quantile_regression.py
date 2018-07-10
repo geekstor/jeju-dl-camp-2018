@@ -134,7 +134,7 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
                 random.choice(self.train_network.actions)
             )]
         else:
-            return self.train_network.act_to_send(self.greedy_action([x]))
+            return [self.train_network.act_to_send(self.greedy_action([x])[0])]
 
     def viz_dist(self, x):
         # Plot

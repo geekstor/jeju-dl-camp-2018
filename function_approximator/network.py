@@ -25,7 +25,6 @@ class GeneralNetwork:
         else:
             obs_shape = config_parser.parsed_json["DEFAULT_OBS_DIMS"]
 
-        print(type(obs_shape[0]))
         # Input
         self.x = tf.placeholder(name="state",
                                 dtype=tf.float32,

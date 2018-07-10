@@ -5,9 +5,10 @@ import numpy as np
 import tensorflow as tf
 from gym.wrappers import Monitor
 from tensorflow import layers
+from tensorflow.python.training.saver import Saver
 
 env_id = "CartPole-v0"
-env = Monitor(gym.make(env_id), directory="IQNRiskAverse",
+env = Monitor(gym.make(env_id), directory="IQNDueling",
               video_callable=lambda ep_id: ep_id % 100 == 0, force=True)
 
 # TODO: Try SoftMax exploration.
@@ -56,10 +57,15 @@ class IQNNetwork:
 
             mul = tf.einsum('bnj,bj->bnj', phi, self.outs[-1])
 
-            self.q_dist = tf.transpose(
+            self.a_dist = tf.transpose(
                 tf.layers.dense(inputs=mul, units=num_actions, activation=None),
                 perm=[0, 2, 1]
             )
+
+            self.v = tf.layers.dense(inputs=self.outs[-1], units=1, activation=None)
+
+            self.q_dist = tf.identity(tf.expand_dims(self.v, axis=-1) + self.a_dist - \
+                          tf.expand_dims(tf.reduce_mean(self.a_dist, axis=1), axis=1), name="q_dist")
 
             self.q = tf.reduce_mean(self.q_dist, axis=-1)
 
@@ -129,7 +135,8 @@ class IQN:
             return random.randint(0, self.num_actions - 1)
         else:
             return sess.run(self.train_net.out,
-                            feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: True})
+                            feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: False,
+                                       self.train_net.is_acting: True})
         #return np.random.choice(np.array(list(range(self.num_actions))), p=np.squeeze(sess.run(self.train_net.q_softmax,
         #                     feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: True, self.train_net.is_acting: True})))
 
@@ -149,7 +156,7 @@ iqn = IQN(env.observation_space.shape[0], env.action_space.n)
 train_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='train_base_net')
 target_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_base_net')
 sampling_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='train_base_net/sampling')
-
+train_variables = [i for i in train_variables if i not in sampling_variables]
 
 assign_ops = []
 for main_var, target_var in zip(sorted(train_variables, key=lambda x : x.name),
@@ -178,12 +185,13 @@ def train(x, a, r=None, x_p=None, t=None, true_return=None):
         return sess.run([iqn.sampling_loss, train_step_sampling], feed_dict={iqn.train_net.state: x,
                                                           iqn.action_placeholder: a,
                                                           iqn.return_placeholder: true_return,
-                                                          iqn.train_net.is_acting: True})
+                                                          iqn.train_net.is_acting: True,
+                                                          iqn.train_net.calc_beta_tau: False})
     return sess.run([iqn.loss, train_step],
                     feed_dict={iqn.train_net.state: x,
                                iqn.action_placeholder: a,
                                iqn.r: r, iqn.t: t, iqn.target_net.state: x_p,
-                               iqn.target_net.calc_beta_tau: True})
+                               iqn.target_net.calc_beta_tau: False})
 
 init = tf.global_variables_initializer()
 sess.run(init)
@@ -196,6 +204,8 @@ epsilon_decay = 500
 import math
 epsilon_by_frame = lambda frame_idx: epsilon_final + (epsilon_start - epsilon_final) * math.exp(-1. * frame_idx / epsilon_decay)
 
+saver = tf.train.Saver(var_list=train_variables + sampling_variables,
+                       max_to_keep=100, keep_checkpoint_every_n_hours=1)
 
 num_frames = 20000
 
@@ -273,19 +283,20 @@ for frame_idx in range(1, num_frames + 1):
         loss, _ = train(x_batch, a_batch, r_batch, x_p_batch, t_batch)
         losses.append(loss)
 
-    if len(return_buffer) >= batch_sz:
-        batch = random.sample(return_buffer, batch_sz)
-
-        x_batch = [i[0] for i in batch]
-        a_batch = [i[1] for i in batch]
-        return_batch = [i[2] for i in batch]
-
-        loss, _ = train(x_batch, a_batch, true_return=return_batch)
-        sampling_losses.append(loss)
+    # if len(return_buffer) >= batch_sz:
+    #     batch = random.sample(return_buffer, batch_sz)
+    #
+    #     x_batch = [i[0] for i in batch]
+    #     a_batch = [i[1] for i in batch]
+    #     return_batch = [i[2] for i in batch]
+    #
+    #     loss, _ = train(x_batch, a_batch, true_return=return_batch)
+    #     sampling_losses.append(loss)
 
     #if frame_idx % 200 == 0:
     #    plot(frame_idx, all_rewards, losses)
 
     if frame_idx % 1000 == 0:
         sess.run(copy_operation)
+        saver.save(sess=sess, global_step=frame_idx, save_path="IQNDueling/Model")
 
