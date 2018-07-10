@@ -33,3 +33,11 @@ Traceback (most recent call last):
 ModuleNotFoundError: No module named 'cv2'
 /home/rishab_gargeya/miniconda3/envs/rl1/bin/python: No module named trainer
 /home/rishab_gargeya/miniconda3/envs/rl1/bin/python: No module named trainer
+Traceback (most recent call last):
+  File "/home/rishab_gargeya/miniconda3/lib/python3.6/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/home/rishab_gargeya/miniconda3/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/rishab_gargeya/jeju-dl-camp-2018/trainer/train.py", line 3, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'

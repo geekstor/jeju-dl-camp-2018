@@ -31,3 +31,4 @@ dependencies:
         - pyvirtualdisplay
         - gym
         - gym-retro
+        - opencv-python
