@@ -52,7 +52,7 @@ class Manager():
             done = False
             in_ep_r = 0
             while not done:
-                if ep_id % 20 == 0 and ep_id > 0:
+                if ep_id % 1 == 0 and ep_id > 0:
                     self.render_buffer.append(
                         agent.viz_dist([x], self.env.render(mode="rgb_array"))
                     )
