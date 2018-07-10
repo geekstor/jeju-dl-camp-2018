@@ -75,5 +75,10 @@ class Manager():
                 clip.write_gif(str(start_time) + '/ep' + str(ep_id) + '.gif', fps=5)
                 self.render_buffer = []
 
+#agent = QRAgent() # TODO: Start with a base Agent class and
+                  # TODO: inherit for all agents. Set Agent
+                  # TODO: in config.
+#m.train(agent)
+#show()
 m = Manager(e, agent)
 m.run()
