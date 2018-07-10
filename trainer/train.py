@@ -4,32 +4,36 @@ import sys
 if len(sys.argv) < 2:
     assert "Configuration File Required."
 
-config_file_loc = os.getcwd() + "\\..\\configuration\\" + sys.argv[1]
+from pathlib import Path
+parent_dir = Path(__file__).resolve().parent.parent
+config_file_loc = parent_dir / "configuration" / sys.argv[1]
 
 from configuration import ConfigurationManager
 cfg_manager = ConfigurationManager(config_file_loc)
 
 from environment import Environment
-
 e = Environment(cfg_manager)
 
 # Get Defaults for Network Configuration. Defined in global scope!
-cfg_manager.parsed_json["DEFAULT_NUM_ACTIONS"] = e.num_actions()
-cfg_manager.parsed_json["DEFAULT_OBS_DIMS"] = e.observation_dims()
-# Also parses Optimizer, Network, and Expl. Pol.
+cfg_manager["DEFAULT_NUM_ACTIONS"] = e.num_actions()
+cfg_manager["DEFAULT_OBS_DIMS"] = e.observation_dims()
 
+# Parse Agent. Also parses Optimizer, Network, and (TODO: Expl. Pol.)
 agent = None
-if cfg_manager.parsed_json["AGENT"]["TYPE"] == "CATEGORICAL":
+if cfg_manager["AGENT"]["TYPE"] == "CATEGORICAL":
     from agent import categorical_agent
     agent = categorical_agent.CategoricalAgent(cfg_manager)
-elif cfg_manager.parsed_json["AGENT"]["TYPE"] == "QUANTILE_REGRESSION":
+elif cfg_manager["AGENT"]["TYPE"] == "QUANTILE_REGRESSION":
     from agent import quantile_regression
     agent = quantile_regression.QuantileRegressionAgent(cfg_manager)
 
 import time
 start_time = time.time()
 
-os.makedirs("./" + str(start_time))
+os.makedirs(parent_dir / str(start_time))
+from shutil import copyfile
+copyfile(config_file_loc, parent_dir / str(start_time) / "config.json")
+
 
 class Manager():
     def __init__(self, env, agent):
