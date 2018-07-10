@@ -13,6 +13,12 @@ class Environment:
             gym_env_cfg = config_parser.parse_and_return_dictionary(
                 "ENVIRONMENT", gym_env_required_params)
             self.env = gym.make(gym_env_cfg["GYM_ENV_NAME"])
+        elif env_cfg["ENVIRONMENT_TYPE"] == "GYM-RETRO":
+            import retro
+            gym_env_required_params = ["GYM_ENV_NAME"]
+            gym_env_cfg = config_parser.parse_and_return_dictionary(
+                "ENVIRONMENT", gym_env_required_params)
+            self.env = retro.make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"])
         else:
             raise NotImplementedError
 

@@ -53,10 +53,10 @@ class Manager():
         ep_r = 0
         x = self.env.reset()
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
-            #if ep_id % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
-            #    self.render_buffer.append(
-            #        agent.viz([x], self.env.render(mode="rgb_array"))
-            #    )
+            if ep_id % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
+                self.render_buffer.append(
+                    agent.viz([x], self.env.render(mode="rgb_array"))
+                )
 
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
@@ -82,10 +82,5 @@ class Manager():
                 clip.write_gif(str(start_time) + '/ep' + str(ep_id) + '.gif', fps=5)
                 self.render_buffer = []
 
-#agent = QRAgent() # TODO: Start with a base Agent class and
-                  # TODO: inherit for all agents. Set Agent
-                  # TODO: in config.
-#m.train(agent)
-#show()
 m = Manager(e, agent)
 m.run()
