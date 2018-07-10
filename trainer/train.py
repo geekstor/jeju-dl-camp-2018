@@ -79,11 +79,11 @@ class Manager():
                 ep_steps = 0
                 ep_r = 0
 
-            if len(self.render_buffer) > 0:
-                from moviepy.editor import ImageSequenceClip
-                clip = ImageSequenceClip(self.render_buffer, fps=5)
-                clip.write_gif(str(parent_dir / str(start_time)) + '/ep' + str(ep_num) + '.gif', fps=5)
-                self.render_buffer = []
+                if len(self.render_buffer) > 0:
+                    from moviepy.editor import ImageSequenceClip
+                    clip = ImageSequenceClip(self.render_buffer, fps=5)
+                    clip.write_gif(str(parent_dir / str(start_time)) + '/ep' + str(ep_num) + '.gif', fps=5)
+                    self.render_buffer = []
 
 m = Manager(e, agent)
 m.run()
