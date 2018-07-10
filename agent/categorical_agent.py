@@ -190,14 +190,22 @@ class CategoricalAgent(agent.DistributionalAgent):
 
     def act(self, x):
         if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
-            return [self.train_network.act_to_send(
+            return self.train_network.act_to_send(
                 random.choice(self.train_network.actions)
-            )]
+            )
         else:
-            return self.train_network.act_to_send(self.greedy_action([x]))
+            return self.train_network.act_to_send(self.greedy_action([x])[0])
 
-    def viz_dist(self, x):
+    def viz_dist(self, x, rgb_x):
         # Plot
+        from matplotlib import gridspec
+        gridspec.GridSpec(2, 2)
+        plt.subplot2grid((3, 3), (0, 0), colspan=1, rowspan=2)
+        # plt.subplot(len(self.train_network.actions), 2, [1, 3])
+        from scipy.misc import imresize
+        plt.imshow(imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1]]),
+                   aspect="auto", interpolation="nearest")
+
         h = np.squeeze(self.sess.run(fetches=self.train_network.y,
                        feed_dict={self.train_network_base.x: x}))
         l, s = np.linspace(self.cfg["V_MIN"],
@@ -206,12 +214,18 @@ class CategoricalAgent(agent.DistributionalAgent):
                            retstep=True)
 
         for i in range(h.shape[0]):
-            plt.subplot(len(self.train_network.actions), 1, i + 1)
+            plt.subplot2grid((2, 2), (i, 1), colspan=1, rowspan=1)
+            # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1))
             plt.bar(l - s/2., height=h[i], width=s,
                     color="brown", edgecolor="red", linewidth=0.5, align="edge")
 
         plt.pause(0.1)
         plt.gcf().clear()
+
+        data = np.fromstring(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
+        data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
+
+        return data
 
     def add(self, x, a, r, x_p, t):
         self.experience_replay.add([x, a, r, x_p, not t])

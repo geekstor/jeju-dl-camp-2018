@@ -21,6 +21,7 @@ class Head:
     def act_to_send(self, action):
         # TODO: Update Agent to use this function.
         # TODO: Important for games where action space is modified!
+
         return self.actions[action]
 
 
