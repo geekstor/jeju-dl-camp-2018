@@ -136,26 +136,26 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         else:
             return [self.train_network.act_to_send(self.greedy_action([x])[0])]
 
-    def viz_dist(self, x, rgb_x):
+    def viz(self, x, rgb_x):
         # Plot
-        from matplotlib import gridspec
-        gridspec.GridSpec(2, 2)
-        plt.subplot2grid((3, 3), (0, 0), colspan=1, rowspan=2)
+        h = np.squeeze(self.sess.run(fetches=self.train_network.y,
+                                     feed_dict={self.train_network_base.x: x}))
+
+        plt.subplot2grid((h.shape[0], h.shape[0]), (0, 0), colspan=1, rowspan=h.shape[0])
         # plt.subplot(len(self.train_network.actions), 2, [1, 3])
         from scipy.misc import imresize
-        plt.imshow(imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1]]),
+        plt.imshow(imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1] * 10]),
                    aspect="auto", interpolation="nearest")
 
-        h = np.squeeze(self.sess.run(fetches=self.train_network.y,
-                       feed_dict={self.train_network_base.x: x}))
-        l, s = np.linspace(0, 1,
+        l, s = np.linspace(0,
+                           1,
                            self.train_network.cfg["NB_ATOMS"],
                            retstep=True)
 
         for i in range(h.shape[0]):
-            plt.subplot2grid((2, 2), (i, 1), colspan=1, rowspan=1)
+            plt.subplot2grid((h.shape[0], h.shape[0]), (i, 1), colspan=1, rowspan=1)
             # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1))
-            plt.bar(l - s/2., height=h[i], width=s,
+            plt.bar(l - s / 2., height=h[i], width=s,
                     color="brown", edgecolor="red", linewidth=0.5, align="edge")
 
         plt.pause(0.1)
