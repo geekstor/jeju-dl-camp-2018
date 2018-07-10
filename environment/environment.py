@@ -1,6 +1,5 @@
 from configuration import ConfigurationManager
 
-
 class Environment:
     required_params = ["ENVIRONMENT_TYPE"]
 
@@ -23,9 +22,9 @@ class Environment:
     def reset(self):
         return self.env.reset()
 
-    def render(self):
+    def render(self, mode="human"):
         # Add distribution here.
-        return self.env.render()
+        return self.env.render(mode)
 
     def num_actions(self):
         # Assumes gym env. Set this var. for other envs.
@@ -34,4 +33,3 @@ class Environment:
     def observation_dims(self):
         # Assumes gym env. Set this var. for other envs.
         return self.env.observation_space.shape
-

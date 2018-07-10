@@ -1,9 +1,10 @@
+import os
 import sys
 
 if len(sys.argv) < 2:
     assert "Configuration File Required."
 
-config_file_loc = "../configuration/" + sys.argv[1]
+config_file_loc = os.getcwd() + "\\..\\configuration\\" + sys.argv[1]
 
 from configuration import ConfigurationManager
 cfg_manager = ConfigurationManager(config_file_loc)
@@ -16,14 +17,25 @@ e = Environment(cfg_manager)
 cfg_manager.parsed_json["DEFAULT_NUM_ACTIONS"] = e.num_actions()
 cfg_manager.parsed_json["DEFAULT_OBS_DIMS"] = e.observation_dims()
 # Also parses Optimizer, Network, and Expl. Pol.
-from agent import quantile_regression
-distagent = quantile_regression.QuantileRegressionAgent(cfg_manager)
 
+agent = None
+if cfg_manager.parsed_json["AGENT"]["TYPE"] == "CATEGORICAL":
+    from agent import categorical_agent
+    agent = categorical_agent.CategoricalAgent(cfg_manager)
+elif cfg_manager.parsed_json["AGENT"]["TYPE"] == "QUANTILE_REGRESSION":
+    from agent import quantile_regression
+    agent = quantile_regression.QuantileRegressionAgent(cfg_manager)
+
+import time
+start_time = time.time()
+
+os.makedirs("./" + str(start_time))
 
 class Manager():
     def __init__(self, env, agent):
         self.env = env
         self.agent = agent
+        self.render_buffer = []
 
     def run(self):
         ep_id = 0
@@ -35,13 +47,15 @@ class Manager():
             done = False
             in_ep_r = 0
             while not done:
-                #if ep_id % 20 == 0 and ep_id > 0:
-                #    distagent.viz_dist([x])
+                if ep_id % 20 == 0 and ep_id > 0:
+                    self.render_buffer.append(
+                        agent.viz_dist([x], self.env.render(mode="rgb_array"))
+                    )
 
-                a = distagent.act(x)[0]
+                a = agent.act(x)
                 x_prime, r, done, _ = self.env.step(a)
 
-                distagent.update(x, a, r, x_prime, done)
+                agent.update(x, a, r, x_prime, done)
                 in_ep_r += r
                 steps += 1
 
@@ -51,11 +65,11 @@ class Manager():
             import numpy as np
             print(ep_id, steps, total_r[-1], np.mean(total_r))
             ep_id += 1
+            if len(self.render_buffer) > 0:
+                from moviepy.editor import ImageSequenceClip
+                clip = ImageSequenceClip(self.render_buffer, fps=5)
+                clip.write_gif(str(start_time) + '/ep' + str(ep_id) + '.gif', fps=5)
+                self.render_buffer = []
 
-m = Manager(e, distagent)
+m = Manager(e, agent)
 m.run()
-#agent = QRAgent() # TODO: Start with a base Agent class and
-                  # TODO: inherit for all agents. Set Agent
-                  # TODO: in config.
-#m.train(agent)
-#show()
