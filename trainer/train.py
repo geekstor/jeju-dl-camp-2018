@@ -61,7 +61,7 @@ class Manager():
 
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
-            agent.update(x, a, r, x_prime, done)
+            agent.update(x, a[0], r, x_prime, done)
             ep_steps += 1
             ep_r += r
             x = x_prime
