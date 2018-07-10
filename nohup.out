@@ -1,0 +1,33 @@
+Traceback (most recent call last):
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/site-packages/retro/__init__.py", line 115, in make
+    get_romfile_path(game)
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/site-packages/retro/__init__.py", line 79, in get_romfile_path
+    raise FileNotFoundError("No romfiles found for game: %s" % game)
+FileNotFoundError: No romfiles found for game: SonicTheHedgehog-Genesis
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/rishab_gargeya/jeju-dl-camp-2018/trainer/train.py", line 16, in <module>
+    e = Environment(cfg_manager)
+  File "/home/rishab_gargeya/jeju-dl-camp-2018/environment/environment.py", line 21, in __init__
+    self.env = retro.make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"])
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/site-packages/retro/__init__.py", line 120, in make
+    raise FileNotFoundError('Game not found: %s. Did you make sure to import the ROM?' % game)
+FileNotFoundError: Game not found: SonicTheHedgehog-Genesis. Did you make sure to import the ROM?
+Traceback (most recent call last):
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/home/rishab_gargeya/miniconda3/envs/rl1/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/rishab_gargeya/jeju-dl-camp-2018/trainer/train.py", line 16, in <module>
+    e = Environment(cfg_manager)
+  File "/home/rishab_gargeya/jeju-dl-camp-2018/environment/environment.py", line 22, in __init__
+    from trainer.wrappers import wrap_env
+  File "/home/rishab_gargeya/jeju-dl-camp-2018/trainer/wrappers.py", line 3, in <module>
+    import cv2
+ModuleNotFoundError: No module named 'cv2'

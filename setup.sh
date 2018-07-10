@@ -1,6 +1,5 @@
 #!/bin/bash
 sudo apt-get update
-conda install -c conda-forge opencv=2.4
 sudo apt install libgl1-mesa-glx
 sudo apt-get install -y libxrender-dev
 dpkg --add-architecture i386
@@ -12,3 +11,7 @@ sudo apt-get install htop
 sudo apt-get update
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
+source ~/.bashrc
+conda env create
+conda install -c conda-forge opencv=2.4
+python -m retro.import.sega_classics
