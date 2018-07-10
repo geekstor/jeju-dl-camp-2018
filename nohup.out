@@ -31,3 +31,5 @@ Traceback (most recent call last):
   File "/home/rishab_gargeya/jeju-dl-camp-2018/trainer/wrappers.py", line 3, in <module>
     import cv2
 ModuleNotFoundError: No module named 'cv2'
+/home/rishab_gargeya/miniconda3/envs/rl1/bin/python: No module named trainer
+/home/rishab_gargeya/miniconda3/envs/rl1/bin/python: No module named trainer
