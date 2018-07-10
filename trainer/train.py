@@ -52,8 +52,9 @@ class Manager():
         ep_steps = 0
         ep_r = 0
         x = self.env.reset()
+        total_r = []
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
-            if ep_id % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
+            if ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
                 self.render_buffer.append(
                     agent.viz([x], self.env.render(mode="rgb_array"))
                 )
@@ -61,15 +62,17 @@ class Manager():
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
             agent.update(x, a, r, x_prime, done)
+            ep_steps += 1
             ep_r += r
             x = x_prime
 
             if done:
                 total_r.append(ep_r)
                 print("Episode Num:.", ep_num,
-                      "Steps:", steps,
+                      "Steps:", ep_steps,
                       "Episode Reward: ", ep_r,
-                      "Mean Reward: ", np.mean(total_r[window_start_bound:]))
+                      "Mean Reward: ", np.mean(total_r[window_start_bound:]) if
+                      len(total_r > abs(window_start_bound)) else "Not Yet Enough Ep.")
 
                 x = self.env.reset()
                 ep_num += 1
@@ -79,7 +82,7 @@ class Manager():
             if len(self.render_buffer) > 0:
                 from moviepy.editor import ImageSequenceClip
                 clip = ImageSequenceClip(self.render_buffer, fps=5)
-                clip.write_gif(str(start_time) + '/ep' + str(ep_id) + '.gif', fps=5)
+                clip.write_gif(str(start_time) + '/ep' + str(ep_num) + '.gif', fps=5)
                 self.render_buffer = []
 
 m = Manager(e, agent)
