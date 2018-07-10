@@ -55,6 +55,6 @@ Authors: Valliappa Chockalingam and Rishab Gargeya
 
 * environment.yml : dependencies list
 
-
+* run on GCP: nohup xvfb-run -s "-screen 0 1400x900x24" python -m trainer.train params_*.json &
 
 
