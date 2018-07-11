@@ -1,3 +1,13 @@
+'''
+File: optimizer.py
+
+Usage:
+    Features and methods for optimizing neural networks.
+    Adam Optimizer, Gradient Clipping. 
+
+'''
+
+
 def get_optimizer(cfg_parser, loss_op, var_list):
     required_params = ["OPTIMIZER_TYPE"]
     optim_cfg = cfg_parser.parse_and_return_dictionary(

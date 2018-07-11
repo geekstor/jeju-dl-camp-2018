@@ -1,5 +1,21 @@
 import json
 
+'''
+File: configuration.py
+
+Usage:
+    ConfigurationManager - Parses static configuration file. File must be a json file.
+
+JSON Input Schema:
+    MANAGER : Training Parameters (# Steps, Episodes, etc.)
+    HEAD : nb_atoms 
+    NETWORK : Architecture of Network
+    OPTIMIZER: Optimizer Hyperparameters (Type, LR, Epsilon)
+    AGENT : RL Agent Configuration (Type, Minibatch Size, etc.)
+    EXPERIENCE_REPLAY : Experience Replay Size
+    ENVIRONMENT : Environment Parameters (Type, Env Name, Level Name, Episodic Life, History Len, Scaled Float, Clip Rewards)
+
+'''
 
 class ConfigurationManager:
     def __init__(self, config_file_loc):

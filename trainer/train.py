@@ -2,6 +2,14 @@ import os
 import sys
 import numpy as np
 
+'''
+File: train.py
+
+Usage:
+    Receives Configuration File. Propagates to Agent, Memory, Optimizer, Function_Approximator, Environment.
+
+'''
+
 if len(sys.argv) < 2:
     assert "Configuration File Required."
 
@@ -39,6 +47,14 @@ if "AVERAGE_REWARD_WINDOW" not in cfg_manager["MANAGER"]:
     cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"] = 0
 window_start_bound = -cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"]
 
+"""
+Manager Class:
+
+Methods:
+    __init__: env, agent, render_buffer (recording episodes)
+    run: training loop for the reinforcement learning algorithm
+
+"""
 class Manager():
     def __init__(self, env, agent):
         self.env = env
@@ -48,11 +64,11 @@ class Manager():
         self.render_buffer = []
 
     def run(self):
-        ep_num = 1
-        ep_steps = 0
-        ep_r = 0
+        ep_num = 1 # Number of total episodes.
+        ep_steps = 0 # Number of steps per episodes.
+        ep_r = 0 # ??
         x = self.env.reset()
-        total_r = []
+        total_r = [] # ??
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
             if ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
                 self.render_buffer.append(

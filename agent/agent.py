@@ -1,5 +1,13 @@
 from configuration import ConfigurationManager
 
+'''
+File: agent.py
+
+Usage:
+    Agent Class: Generic wrapper for agent.
+    Extensions: Distributional Agent. Implements distribution method.
+
+'''
 
 # Contains **Abstract** Agents. All functions are pure virtual
 # (will error if any function is not implemented)
@@ -42,4 +50,3 @@ class DistributionalAgent(Agent):
     # Returns distribution over state-action values.
     def distribution(self, state):
         raise NotImplementedError
-

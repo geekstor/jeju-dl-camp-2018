@@ -1,5 +1,27 @@
 from configuration import ConfigurationManager
 
+'''
+File: environment.py
+
+Usage:
+    Defines environment for the agent.
+    Supports: Gym, Gym-Retro.
+
+Params:
+    ENVIRONMENT_TYPE
+    GYM_ENV_NAME
+    GYM_ENV_LEVEL
+
+Methods:
+    step: Next step in the environment.
+    reset: Reset to the first frame of the environment.
+    render: Graphically render the environment with settings.
+    num_actions: returns the current action space length.
+    observation_dims: returns the current observation dimensional shape.
+
+
+'''
+
 class Environment:
     required_params = ["ENVIRONMENT_TYPE"]
 
