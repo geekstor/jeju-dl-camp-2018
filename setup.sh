@@ -12,7 +12,7 @@ sudo apt-get install moreutils
 sudo apt-get update
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
+sleep 10s
 source ~/.bashrc
 conda env create
-conda install -c conda-forge opencv=2.4
 python -m retro.import.sega_classics
