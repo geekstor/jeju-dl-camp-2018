@@ -26,6 +26,7 @@ e = Environment(cfg_manager)
 # Get Defaults for Network Configuration. Defined in global scope!
 cfg_manager["DEFAULT_NUM_ACTIONS"] = e.num_actions()
 cfg_manager["DEFAULT_OBS_DIMS"] = e.observation_dims()
+print(e.num_actions())
 
 # Parse Agent. Also parses Optimizer, Network, and (TODO: Expl. Pol.)
 agent = None
@@ -68,6 +69,7 @@ class Manager():
         ep_steps = 0 # Number of steps per episodes.
         ep_r = 0 # ??
         x = self.env.reset()
+        #print(x.shape)
         total_r = [] # ??
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
             if ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
@@ -75,6 +77,7 @@ class Manager():
                     agent.viz([x], self.env.render(mode="rgb_array"))
                 )
 
+            #self.env.render()
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
             agent.update(x, a[0], r, x_prime, done)
