@@ -3,6 +3,14 @@ from collections import deque
 
 from configuration import ConfigurationManager
 
+'''
+File: experience_replay.py
+
+Usage:
+    Defines the experience replay for minibatch sampling during agent training.
+    Class ExperienceReplay: Wrapper to implement add, sample, size.
+
+'''
 
 class ExperienceReplay:
     required_params = ["EXPERIENCE_REPLAY_SIZE"]

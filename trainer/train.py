@@ -1,6 +1,18 @@
 import os
 import sys
 import numpy as np
+<<<<<<< HEAD
+=======
+
+'''
+File: train.py
+
+Usage:
+    Receives Configuration File. Propagates to Agent, Memory, Optimizer, Function_Approximator, Environment.
+
+'''
+
+>>>>>>> c840dbc52f76eef9b75df1e0346e5b959eb47154
 if len(sys.argv) < 2:
     assert "Configuration File Required."
 
@@ -27,6 +39,7 @@ e = Environment(cfg_manager)
 # Get Defaults for Network Configuration. Defined in global scope!
 cfg_manager["DEFAULT_NUM_ACTIONS"] = e.num_actions()
 cfg_manager["DEFAULT_OBS_DIMS"] = e.observation_dims()
+print(e.num_actions())
 
 # Parse Agent. Also parses Optimizer, Network, and (TODO: Expl. Pol.)
 agent = None
@@ -41,7 +54,18 @@ if "AVERAGE_REWARD_WINDOW" not in cfg_manager["MANAGER"]:
     cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"] = 0
 window_start_bound = -cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"]
 
+<<<<<<< HEAD
 
+=======
+"""
+Manager Class:
+
+Methods:
+    __init__: env, agent, render_buffer (recording episodes)
+    run: training loop for the reinforcement learning algorithm
+
+"""
+>>>>>>> c840dbc52f76eef9b75df1e0346e5b959eb47154
 class Manager():
     def __init__(self, env, agent):
         self.env = env
@@ -51,11 +75,12 @@ class Manager():
         self.render_buffer = []
 
     def run(self):
-        ep_num = 1
-        ep_steps = 0
-        ep_r = 0
+        ep_num = 1 # Number of total episodes.
+        ep_steps = 0 # Number of steps per episodes.
+        ep_r = 0 # ??
         x = self.env.reset()
-        total_r = []
+        #print(x.shape)
+        total_r = [] # ??
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
             if "EPISODE_RECORD_FREQ" in cfg_manager["MANAGER"] and \
                     ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
@@ -64,9 +89,11 @@ class Manager():
                     agent.viz([x], self.env.render(mode="rgb_array"))
                 )
 
+            #self.env.render()
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
-            agent.update(x, a, r, x_prime, done)
+            agent.update(x, a[0], r, x_prime, done)
+            print("updated agent")
             ep_steps += 1
             ep_r += r
             x = x_prime

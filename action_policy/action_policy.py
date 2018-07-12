@@ -3,6 +3,13 @@ import tensorflow as tf
 
 from configuration import ConfigurationManager
 
+'''
+File: action_policy.py
+
+Usage:
+    Implementations of multiple exploration strategies (Epsilon Greedy, Softmax)
+
+'''
 
 # TODO: Get greedy action (TF) op. and return appropriate action (TF) op. Instead of
 # running things in numpy/CPU.
