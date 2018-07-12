@@ -237,3 +237,25 @@ def wrap_env(env, cfg):
     return env
 
 
+class SonicActionWrapper(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.env.action_space.n = 8
+
+    def step(self, action):
+        if action == 0:
+            return self.env.step([0] * 12)
+        elif action == 1:
+            return self.env.step([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
+        elif action == 2:
+            return self.env.step([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
+        elif action == 3:
+            return self.env.step([0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+        elif action == 4:
+            return self.env.step([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0])
+        elif action == 5:
+            return self.env.step([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+        elif action == 6:
+            return self.env.step([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+        elif action == 7:
+            return self.env.step([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])

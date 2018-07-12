@@ -1,7 +1,6 @@
 import os
 import sys
 import numpy as np
-
 if len(sys.argv) < 2:
     assert "Configuration File Required."
 
@@ -11,6 +10,16 @@ config_file_loc = parent_dir / "configuration" / sys.argv[1]
 
 from configuration import ConfigurationManager
 cfg_manager = ConfigurationManager(config_file_loc)
+
+import time
+start_time = time.time()
+
+os.makedirs(parent_dir / str(start_time))
+
+cfg_manager["TRAIN_FOLDER"] = str(parent_dir / str(start_time))
+
+from shutil import copyfile
+copyfile(config_file_loc, parent_dir / str(start_time) / "config.json")
 
 from environment import Environment
 e = Environment(cfg_manager)
@@ -28,16 +37,10 @@ elif cfg_manager["AGENT"]["TYPE"] == "QUANTILE_REGRESSION":
     from agent import quantile_regression
     agent = quantile_regression.QuantileRegressionAgent(cfg_manager)
 
-import time
-start_time = time.time()
-
-os.makedirs(parent_dir / str(start_time))
-from shutil import copyfile
-copyfile(config_file_loc, parent_dir / str(start_time) / "config.json")
-
 if "AVERAGE_REWARD_WINDOW" not in cfg_manager["MANAGER"]:
     cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"] = 0
 window_start_bound = -cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"]
+
 
 class Manager():
     def __init__(self, env, agent):
@@ -54,7 +57,9 @@ class Manager():
         x = self.env.reset()
         total_r = []
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
-            if ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
+            if "EPISODE_RECORD_FREQ" in cfg_manager["MANAGER"] and \
+                    ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
+                self.env.render()
                 self.render_buffer.append(
                     agent.viz([x], self.env.render(mode="rgb_array"))
                 )
@@ -72,18 +77,18 @@ class Manager():
                       "Steps:", ep_steps,
                       "Episode Reward: ", ep_r,
                       "Mean Reward: ", np.mean(total_r[window_start_bound:]) if
-                      len(total_r > abs(window_start_bound)) else "Not Yet Enough Ep.")
+                      len(total_r) > abs(window_start_bound) else "Not Yet Enough Ep.")
+
+                if len(self.render_buffer) > 0:
+                    from moviepy.editor import ImageSequenceClip
+                    clip = ImageSequenceClip(self.render_buffer, fps=5)
+                    clip.write_gif(cfg_manager["TRAIN_FOLDER"] + '/ep' + str(ep_num) + '.gif', fps=5)
+                    self.render_buffer = []
 
                 x = self.env.reset()
                 ep_num += 1
                 ep_steps = 0
                 ep_r = 0
-
-                if len(self.render_buffer) > 0:
-                    from moviepy.editor import ImageSequenceClip
-                    clip = ImageSequenceClip(self.render_buffer, fps=5)
-                    clip.write_gif(str(parent_dir / str(start_time)) + '/ep' + str(ep_num) + '.gif', fps=5)
-                    self.render_buffer = []
 
 m = Manager(e, agent)
 m.run()

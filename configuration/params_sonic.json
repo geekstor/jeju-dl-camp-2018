@@ -6,7 +6,8 @@
     "EPISODIC_LIFE": 0,
     "HISTORY_LEN": 4,
     "SCALED_FLOAT": 1,
-    "CLIP_REWARDS": 0
+    "CLIP_REWARDS": 0,
+    "WRAP_SONIC": 1
   },
 
   "NETWORK": {

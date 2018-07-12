@@ -61,6 +61,7 @@ class SoftmaxFixedAtomsDistributionalHead(FixedAtomsDistributionalHead):
         self.y = tf.nn.softmax(self.y, name="state_action_value_dist",
                               axis=-1)
 
+
 class IQNHead(Head):
     # N comes from agent parameter.
     def __init__(self, config_parser: ConfigurationManager,
@@ -70,4 +71,5 @@ class IQNHead(Head):
         self.psi = net.last_op
 
         self.tau = tf.random_uniform(shape=[N,])
+
 

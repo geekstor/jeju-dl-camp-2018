@@ -1,5 +1,6 @@
 import random
-
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -40,7 +41,7 @@ class CategoricalAgent(agent.DistributionalAgent):
             self.target_network = SoftmaxFixedAtomsDistributionalHead(
                 cfg_parser, self.target_network_base)
 
-        from util.util import get_copy_op
+        from util.util import get_copy_op, get_vars_with_scope
         self.copy_operation = get_copy_op("train_net",
                                           "target_net")
 
@@ -53,6 +54,33 @@ class CategoricalAgent(agent.DistributionalAgent):
         self.sess.run(init)
 
         self.sess.run(self.copy_operation)
+
+        self.setup_animation()
+        self.saver = tf.train.Saver(var_list=get_vars_with_scope("train_net") + get_vars_with_scope("target_net"),
+                                    max_to_keep=1000, keep_checkpoint_every_n_hours=1)
+
+    def setup_animation(self):
+        num_actions = len(self.train_network.actions)
+
+        plt.subplot2grid((num_actions, num_actions), (0, 0),
+                         colspan=num_actions - 1, rowspan=num_actions)
+
+        self.img_obj = plt.imshow(np.zeros(shape=(84, 84, 3)), aspect="auto", interpolation="nearest")
+
+        l, s = np.linspace(self.cfg["V_MIN"],
+                           self.cfg["V_MAX"],
+                           self.train_network.cfg["NB_ATOMS"],
+                           retstep=True)
+        self.bar_obj = [None] * num_actions
+        for i in range(num_actions):
+            plt.subplot2grid((num_actions, num_actions), (i, num_actions - 1),
+                             colspan=1, rowspan=1)
+            # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1))
+            self.bar_obj[i] = plt.bar(l - s / 2., height=[1 / self.train_network.cfg["NB_ATOMS"]] *
+                                       self.train_network.cfg["NB_ATOMS"], width=s,
+                    color="brown", edgecolor="red", linewidth=0.5, align="edge")
+
+        plt.gcf().canvas.draw()
 
     def build_networks(self):
         Z, delta_z = np.linspace(self.cfg["V_MIN"], self.cfg["V_MAX"],
@@ -201,25 +229,15 @@ class CategoricalAgent(agent.DistributionalAgent):
         h = np.squeeze(self.sess.run(fetches=self.train_network.y,
                        feed_dict={self.train_network_base.x: x}))
 
-        plt.subplot2grid((h.shape[0], h.shape[0]), (0, 0), colspan=1, rowspan=h.shape[0])
-        # plt.subplot(len(self.train_network.actions), 2, [1, 3])
         from scipy.misc import imresize
-        plt.imshow(imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1] * 10]),
-                   aspect="auto", interpolation="nearest")
-
-        l, s = np.linspace(self.cfg["V_MIN"],
-                           self.cfg["V_MAX"],
-                           self.train_network.cfg["NB_ATOMS"],
-                           retstep=True)
+        self.img_obj.set_data(
+            imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1] * 10])
+        )
+        self.img_obj.autoscale()
 
         for i in range(h.shape[0]):
-            plt.subplot2grid((h.shape[0], h.shape[0]), (i, 1), colspan=1, rowspan=1)
-            # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1))
-            plt.bar(l - s/2., height=h[i], width=s,
-                    color="brown", edgecolor="red", linewidth=0.5, align="edge")
-
-        plt.pause(0.1)
-        plt.gcf().clear()
+            for rect, hi in zip(self.bar_obj[i], h[i]):
+                rect.set_height(hi)
 
         data = np.fromstring(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
         data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
@@ -243,3 +261,7 @@ class CategoricalAgent(agent.DistributionalAgent):
             assert(np.allclose(self.sess.run(self.train_network.y, feed_dict={self.train_network_base.x: [x]}),
                    self.sess.run(self.target_network.y, feed_dict={self.target_network_base.x: [x]})))
 
+        if self.num_updates > 0 and "SAVE_FREQ" in self.cfg and \
+            self.num_updates % self.cfg["SAVE_FREQ"] == 0:
+                self.saver.save(sess=self.sess, global_step=self.num_updates,
+                                save_path=self.cfg_parser["TRAIN_FOLDER"] + "/model", write_meta_graph=True)

@@ -15,19 +15,16 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
 
     def __init__(self, cfg_parser: ConfigurationManager):
         super().__init__(cfg_parser)
-
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.intra_op_parallelism_threads = 16
-        config.inter_op_parallelism_threads = 16
-        self.sess = tf.Session(config=config)
-
         self.cfg_parser = cfg_parser
 
-        self.num_updates = 0
+        from util.util import build_session
+        self.sess = build_session(cfg_parser)
 
         self.cfg = cfg_parser.parse_and_return_dictionary(
             "AGENT", QuantileRegressionAgent.required_params)
+
+        from memory.experience_replay import ExperienceReplay
+        self.experience_replay = ExperienceReplay(cfg_parser)
 
         from function_approximator import GeneralNetwork
         with tf.variable_scope("train_net"):
@@ -39,19 +36,18 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
             self.target_network = FixedAtomsDistributionalHead(
                 cfg_parser, self.target_network_base)
 
+        self.build_networks()
+
         from util.util import get_copy_op
         self.copy_operation = get_copy_op("train_net",
                                           "target_net")
-
-        from memory.experience_replay import ExperienceReplay
-        self.experience_replay = ExperienceReplay(cfg_parser)
-
-        self.build_networks()
 
         init = tf.global_variables_initializer()
         self.sess.run(init)
 
         self.sess.run(self.copy_operation)
+
+        self.num_updates = 0
 
     def build_networks(self):
         batch_dim_range = tf.range(tf.shape(self.target_network_base.x)[0], dtype=tf.int32)
@@ -137,6 +133,7 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
             return [self.train_network.act_to_send(self.greedy_action([x])[0])]
 
     def viz(self, x, rgb_x):
+        plt.switch_backend("Agg")
         # Plot
         h = np.squeeze(self.sess.run(fetches=self.train_network.y,
                                      feed_dict={self.train_network_base.x: x}))
@@ -158,8 +155,8 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
             plt.bar(l - s / 2., height=h[i], width=s,
                     color="brown", edgecolor="red", linewidth=0.5, align="edge")
 
-        plt.pause(0.1)
-        plt.gcf().clear()
+        #plt.pause(0.1)
+        #plt.gcf().clear()
 
         data = np.fromstring(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
         data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
