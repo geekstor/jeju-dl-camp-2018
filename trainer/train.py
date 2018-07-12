@@ -1,8 +1,6 @@
 import os
 import sys
 import numpy as np
-<<<<<<< HEAD
-=======
 
 '''
 File: train.py
@@ -12,7 +10,6 @@ Usage:
 
 '''
 
->>>>>>> c840dbc52f76eef9b75df1e0346e5b959eb47154
 if len(sys.argv) < 2:
     assert "Configuration File Required."
 
@@ -54,9 +51,6 @@ if "AVERAGE_REWARD_WINDOW" not in cfg_manager["MANAGER"]:
     cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"] = 0
 window_start_bound = -cfg_manager["MANAGER"]["AVERAGE_REWARD_WINDOW"]
 
-<<<<<<< HEAD
-
-=======
 """
 Manager Class:
 
@@ -65,7 +59,6 @@ Methods:
     run: training loop for the reinforcement learning algorithm
 
 """
->>>>>>> c840dbc52f76eef9b75df1e0346e5b959eb47154
 class Manager():
     def __init__(self, env, agent):
         self.env = env
