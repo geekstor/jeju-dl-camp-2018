@@ -82,11 +82,14 @@ class Manager():
                     agent.viz([x], self.env.render(mode="rgb_array"))
                 )
 
-            #self.env.render()
+            self.env.render()
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
-            agent.update(x, a[0], r, x_prime, done)
-            print("updated agent")
+            print("action : ", a)
+            print("reward : ", r)
+            print("cum reward : ", ep_r)
+            agent.update(x, a, r, x_prime, done)
+            #print("updated agent")
             ep_steps += 1
             ep_r += r
             x = x_prime

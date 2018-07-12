@@ -5,7 +5,7 @@
     "GYM_ENV_LEVEL": "LabyrinthZone.Act1",
     "EPISODIC_LIFE": 0,
     "HISTORY_LEN": 4,
-    "SCALED_FLOAT": 1,
+    "SCALED_FLOAT": 0,
     "CLIP_REWARDS": 0,
     "WRAP_SONIC": 1
   },
@@ -25,16 +25,18 @@
   },
 
   "AGENT": {
-    "TYPE": "QUANTILE_REGRESSION",
+    "TYPE": "CATEGORICAL",
     "UPDATE_FREQUENCY": 1,
     "DISCOUNT_FACTOR": 0.99,
     "COPY_TARGET_FREQ": 1000,
     "MINIBATCH_SIZE": 32, 
-    "SAVE_FREQ": 1000
+    "SAVE_FREQ": 1000,
+    "V_MIN": 0,
+    "V_MAX":200
   },
 
   "EXPERIENCE_REPLAY": {
-    "EXPERIENCE_REPLAY_SIZE": 50000
+    "EXPERIENCE_REPLAY_SIZE": 500000
   },
 
   "OPTIMIZER": {
