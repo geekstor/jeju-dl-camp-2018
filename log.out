@@ -332,3 +332,45 @@
 2018-07-11-18:58:18.198061 updated agent
 2018-07-11-18:58:18.283791 updated agent
 2018-07-11-18:58:18.371068 updated agent
+8
+train_net
+target_net
+10
+[33mWARN: <class 'util.wrappers.SonicActionWrapper'> doesn't implement 'reset' method, which is required for wrappers derived directly from Wrapper. Deprecated default implementation is used.[0m
+Ep. Running, Steps: 100 Time since start: 0h:0m:2s
+Ep. Running, Steps: 200 Time since start: 0h:0m:4s
+Ep. Running, Steps: 300 Time since start: 0h:0m:7s
+Ep. Running, Steps: 400 Time since start: 0h:0m:9s
+Ep. Running, Steps: 500 Time since start: 0h:0m:11s
+Ep. Running, Steps: 600 Time since start: 0h:0m:13s
+Ep. Running, Steps: 700 Time since start: 0h:0m:15s
+Ep. Running, Steps: 800 Time since start: 0h:0m:18s
+Ep. Running, Steps: 900 Time since start: 0h:0m:20s
+Copied.
+Ep. Running, Steps: 1000 Time since start: 0h:0m:22s
+Ep. Running, Steps: 1100 Time since start: 0h:0m:24s
+Ep. Running, Steps: 1200 Time since start: 0h:0m:27s
+Ep. Running, Steps: 1300 Time since start: 0h:0m:30s
+Ep. Running, Steps: 1400 Time since start: 0h:0m:32s
+Ep. Running, Steps: 1500 Time since start: 0h:0m:34s
+Ep. Running, Steps: 1600 Time since start: 0h:0m:37s
+Ep. Running, Steps: 1700 Time since start: 0h:0m:40s
+Ep. Running, Steps: 1800 Time since start: 0h:0m:42s
+Ep. Running, Steps: 1900 Time since start: 0h:0m:44s
+Copied.
+Ep. Running, Steps: 2000 Time since start: 0h:0m:47s
+Ep. Running, Steps: 2100 Time since start: 0h:0m:49s
+Ep. Running, Steps: 2200 Time since start: 0h:0m:51s
+Ep. Running, Steps: 2300 Time since start: 0h:0m:54s
+Ep. Running, Steps: 2400 Time since start: 0h:0m:56s
+Ep. Running, Steps: 2500 Time since start: 0h:0m:58s
+Ep. Running, Steps: 2600 Time since start: 0h:1m:1s
+Ep. Running, Steps: 2700 Time since start: 0h:1m:3s
+Ep. Running, Steps: 2800 Time since start: 0h:1m:6s
+Ep. Running, Steps: 2900 Time since start: 0h:1m:8s
+Copied.
+Ep. Running, Steps: 3000 Time since start: 0h:1m:11s
+Ep. Running, Steps: 3100 Time since start: 0h:1m:14s
+Ep. Running, Steps: 3200 Time since start: 0h:1m:16s
+Ep. Running, Steps: 3300 Time since start: 0h:1m:18s
+Ep. Running, Steps: 3400 Time since start: 0h:1m:20s

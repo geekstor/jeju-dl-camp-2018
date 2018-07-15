@@ -40,7 +40,7 @@ class Environment:
             gym_env_required_params = ["GYM_ENV_NAME"]
             gym_env_cfg = config_parser.parse_and_return_dictionary(
                 "ENVIRONMENT", gym_env_required_params)
-            self.env = retro.make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"], scenario='contest')
+            self.env = retro.make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"], scenario='contest', record='.')
             from util.wrappers import wrap_env, SonicActionWrapper
             if "WRAP_SONIC" in gym_env_cfg and gym_env_cfg["WRAP_SONIC"]:
                 self.env = SonicActionWrapper(self.env)

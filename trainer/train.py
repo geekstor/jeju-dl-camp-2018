@@ -74,6 +74,8 @@ class Manager():
         x = self.env.reset()
         #print(x.shape)
         total_r = [] # ??
+        import datetime
+        ep_start_time = datetime.datetime.now()
         for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
             if "EPISODE_RECORD_FREQ" in cfg_manager["MANAGER"] and \
                     ep_num % cfg_manager["MANAGER"]["EPISODE_RECORD_FREQ"] == 0:
@@ -82,17 +84,26 @@ class Manager():
                     agent.viz([x], self.env.render(mode="rgb_array"))
                 )
 
-            self.env.render()
+            #self.env.render()
             a = agent.act(x)
             x_prime, r, done, _ = self.env.step(a)
-            print("action : ", a)
-            print("reward : ", r)
-            print("cum reward : ", ep_r)
+            #print("action : ", a)
+            #print("reward : ", r)
+            #print("cum reward : ", ep_r)
             agent.update(x, a, r, x_prime, done)
             #print("updated agent")
             ep_steps += 1
             ep_r += r
             x = x_prime
+
+            if ep_steps % 100 == 0:
+                duration = datetime.datetime.now() - ep_start_time             
+                seconds = duration.total_seconds()
+                hours = seconds // 3600
+                minutes = (seconds % 3600) // 60
+                seconds = seconds % 60
+                print("Ep. Running, Steps:", ep_steps, "Time since start:", 
+                      "%dh:%dm:%ds" % (hours, minutes, seconds))
 
             if done:
                 total_r.append(ep_r)

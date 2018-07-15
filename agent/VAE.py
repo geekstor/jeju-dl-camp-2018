@@ -1,11 +1,45 @@
+import numpy as np
 import tensorflow as tf
 from matplotlib import pyplot as plt
 
+import gym
+import random
+import skimage.transform
 
-def tf_func(q):
+def run_env(q):
+    env = gym.make("PongNoFrameskip-v4")
+    while True:
+        done = False
+        state = env.reset()
+        while not done:
+            a = random.randint(0, env.action_space.n - 1)
+            next_state, r, done, _ = env.step(a)
+            #q.put([skimage.transform.resize(state / 256.0, (64, 64), anti_aliasing=True), a, r,
+            #               skimage.transform.resize(next_state / 256.0, (64, 64), anti_aliasing=True), done])
+            q.put(skimage.transform.resize(state / 256.0, (64, 64), anti_aliasing=True))
+            state = next_state
+
+
+if __name__ == "__main__":
+    from multiprocessing import Process
+    from multiprocessing import Manager
+
+    m = Manager()
+    _q = m.Queue(10000)
+
+    env_pool = []
+    for i in range(16):
+        env_pool.append(Process(target=run_env, args=(_q,)))
+
+    for i in range(16):
+        env_pool[i].start()
+
     sess = tf.Session()
+    config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = 1. / 16
+    config.gpu_options.allow_growth = True
 
-    x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 3])
+    x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 3], name="x")
     h = tf.layers.conv2d(inputs=x, filters=32, kernel_size=4, strides=2, activation=tf.nn.relu)
     h = tf.layers.conv2d(inputs=h, filters=64, kernel_size=4, strides=2, activation=tf.nn.relu)
     h = tf.layers.conv2d(inputs=h, filters=128, kernel_size=4, strides=2, activation=tf.nn.relu)
@@ -29,7 +63,7 @@ def tf_func(q):
     h = tf.layers.conv2d_transpose(inputs=h, filters=32, kernel_size=6, strides=2,
                                    activation=tf.nn.relu)
     out = tf.layers.conv2d_transpose(inputs=h, filters=3, kernel_size=6, strides=2,
-                                   activation=tf.nn.sigmoid)
+                                     activation=tf.nn.sigmoid, name="out")
 
     latent_loss = 0.5 * tf.reduce_sum(tf.square(mu) + tf.square(sigma) -
                                       tf.log(tf.maximum(tf.square(sigma), 1e-10)) - 1, 1)
@@ -43,61 +77,28 @@ def tf_func(q):
     optimizer = tf.train.AdamOptimizer(learning_rate=0.0001)
     train_step = optimizer.minimize(loss)
 
+    from util.util import get_vars_with_scope
+    saver = tf.train.Saver(var_list=get_vars_with_scope(""), max_to_keep=100, keep_checkpoint_every_n_hours=1)
+
     sess.run(tf.global_variables_initializer())
 
-    import numpy as np
-
-    while True:
+    from tqdm import tqdm
+    for i in tqdm(range(0, 10000 * 1024, 256)):
         inp = []
-        for i in range(100):
-            inp.append(q.get())
+        for _ in range(256):
+            inp.append(_q.get_nowait())
         y, _ = sess.run([out, train_step], feed_dict={x: np.array(inp)})
-        plt.subplot(2, 1, 1)
-        plt.imshow(inp[0])
-        plt.subplot(2, 1, 2)
-        plt.imshow(y[0])
 
-        plt.pause(0.1)
+        if i % 100 == 0:
+            # saver.save(sess, "VAE/", global_step=i, write_meta_graph=True)
 
+            plt.subplot(2, 1, 1)
+            plt.imshow(inp[0])
+            plt.subplot(2, 1, 2)
+            plt.imshow(y[0])
 
-def run_env(q):
-    import gym
-    import random
-    import skimage.transform
-
-    env = gym.make("PongNoFrameskip-v4")
-    while True:
-        done = False
-        state = env.reset()
-        while not done:
-            a = random.randint(0, env.action_space.n - 1)
-            next_state, r, done, _ = env.step(a)
-            #q.put([skimage.transform.resize(state / 256.0, (64, 64), anti_aliasing=True), a, r,
-            #               skimage.transform.resize(next_state / 256.0, (64, 64), anti_aliasing=True), done])
-            q.put(skimage.transform.resize(state / 256.0, (64, 64), anti_aliasing=True))
-            state = next_state
-
-
-if __name__ == "__main__":
-    from multiprocessing import Process
-    from multiprocessing import Manager
-
-    m = Manager()
-    _q = m.Queue()
-
-    env_pool = []
-    for i in range(16):
-        env_pool.append(Process(target=run_env, args=(_q,)))
-
-    p2 = Process(target=tf_func, args=(_q,))
-
-    for i in range(16):
-        env_pool[i].start()
-    p2.start()
-
-    for i in range(16):
-        env_pool[i].join()
-    p2.join()
-
+            plt.pause(0.1)
+            plt.savefig("Step%d.jpg" % i, dpi=300)
+            plt.close()
 
 

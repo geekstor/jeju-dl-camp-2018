@@ -3,12 +3,10 @@ import random
 import gym
 import numpy as np
 import tensorflow as tf
-from gym.wrappers import Monitor
 from tensorflow import layers
 
 env_id = "CartPole-v0"
-env = Monitor(gym.make(env_id), directory="IQNRiskAverse",
-              video_callable=lambda ep_id: ep_id % 100 == 0, force=True)
+env = gym.make(env_id)
 
 # TODO: Try SoftMax exploration.
 
@@ -37,21 +35,32 @@ class IQNNetwork:
 
             self.is_acting = tf.placeholder_with_default(False, shape=[])
 
-            self.tau = tf.random_uniform(shape=[tf.shape(self.state)[0], tf.cond(self.is_acting, lambda: 4*N, lambda: N)],
+            self.use_tau_placeholder = tf.placeholder_with_default(False, shape=[])
+
+            self.tau_placeholder = tf.placeholder_with_default(np.zeros(shape=[1, 51], dtype=np.float32), shape=[None, 51])
+
+            self._tau = tf.random_uniform(shape=[tf.shape(self.state)[0], tf.cond(self.is_acting, lambda: 4*N, lambda: N)],
                                     minval=0, maxval=1,
                                     dtype=tf.float32)
 
+            self.tau = tf.cond(self.use_tau_placeholder, lambda: self.tau_placeholder, lambda: self._tau)
+
             with tf.variable_scope("sampling"):
-                self.a = layers.dense(inputs=self.outs[-1], units=1, activation=tf.nn.sigmoid, trainable=trainable)
+                self.a = tf.clip_by_value(
+                    layers.dense(inputs=self.outs[-1], units=1,
+                                 activation=None,
+                                 trainable=trainable), 0, 1)
+                self.b = tf.clip_by_value(
+                    layers.dense(inputs=self.outs[-1], units=1,
+                                 activation=None,
+                                 trainable=trainable), 0, 1 - self.a
+                )
 
-                self.b = layers.dense(inputs=self.outs[-1], units=1, activation=tf.nn.sigmoid, trainable=trainable)
-
-            self.transformed_tau = tf.clip_by_value(self.a, 0, 1) + \
-                                       self.tau * tf.clip_by_value(self.b, 0, 1 - self.a)
+            self.transformed_tau = self.a + self.tau * self.b
 
             phi = tf.layers.dense(inputs=tf.cos(tf.einsum('bn,j->bnj', tf.cond(self.calc_beta_tau, lambda: self.transformed_tau,
                                                                                lambda: self.tau),
-                                                          tf.range(64, dtype=tf.float32)) * 3.14159265), units=64,
+                                                          tf.range(64, dtype=tf.float32)) * 3.1415926535), units=64,
                             activation=tf.nn.relu)
 
             mul = tf.einsum('bnj,bj->bnj', phi, self.outs[-1])
@@ -70,6 +79,7 @@ class IQNNetwork:
 # net = IQNNetwork("test", 2, 2, 8, True)
 # sess.run(tf.global_variables_initializer())
 # print(sess.run(net.q_dist, feed_dict={net.state: np.array([[0, 1], [0.3, 0.7]])}))
+
 
 class IQN:
     def __init__(self, num_inputs, num_actions):
@@ -129,7 +139,8 @@ class IQN:
             return random.randint(0, self.num_actions - 1)
         else:
             return sess.run(self.train_net.out,
-                            feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: True})
+                            feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: True,
+                                       self.train_net.is_acting: True})
         #return np.random.choice(np.array(list(range(self.num_actions))), p=np.squeeze(sess.run(self.train_net.q_softmax,
         #                     feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: True, self.train_net.is_acting: True})))
 
@@ -185,6 +196,40 @@ def train(x, a, r=None, x_p=None, t=None, true_return=None):
                                iqn.r: r, iqn.t: t, iqn.target_net.state: x_p,
                                iqn.target_net.calc_beta_tau: True})
 
+
+def viz_dist(x, rgb_x):
+    tau = np.linspace(0, 1, 51)
+
+    a, b, h = sess.run(fetches=[iqn.train_net.a[0], iqn.train_net.b[0],
+                          iqn.train_net.q_dist[0]], feed_dict={iqn.train_net.state: x,
+                                                      iqn.train_net.use_tau_placeholder: True,
+                                                      iqn.train_net.tau_placeholder: [tau]})
+
+    #print(h.shape)
+
+    from matplotlib import pyplot as plt
+    plt.subplot2grid((3, 3), (0, 0), colspan=1, rowspan=2)
+    # plt.subplot(len(self.train_network.actions), 2, [1, 3])
+    from scipy.misc import imresize
+    plt.imshow(imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1]]),
+               aspect="auto", interpolation="nearest")
+
+    for i in range(h.shape[0]):
+        plt.subplot2grid((2, 2), (i, 1), colspan=1, rowspan=1)
+        # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1)))
+        plt.stem(tau, h[i], markerfmt=" ")
+        plt.plot(a, 0, 'ko')
+        plt.plot(b, 0, 'ko')
+
+    plt.pause(0.1)
+    plt.gcf().clear()
+
+    data = np.fromstring(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
+    data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
+
+    return data
+
+
 init = tf.global_variables_initializer()
 sess.run(init)
 sess.run(copy_operation)
@@ -210,10 +255,13 @@ num_steps = 0
 
 batch_sz = 32
 state = env.reset()
+render_buffer = []
+ep_id = 1
 for frame_idx in range(1, num_frames + 1):
     action = iqn.act(np.array([state]), epsilon_by_frame(frame_idx))
-    #if len(all_rewards) % 10 == 0:
-    #    viz_dist(np.array([state]))
+    if ep_id % 50 == 0:
+        out = viz_dist([state], env.render(mode="rgb_array"))
+        render_buffer.append(out)
 
     next_state, reward, done, _ = env.step(action)
     replay_buffer.append([state, action, reward, next_state, done])
@@ -239,27 +287,35 @@ for frame_idx in range(1, num_frames + 1):
         episode_reward = 0
 
 
-        def alt(rewards, discount):
-            """
-            C[i] = R[i] + discount * C[i+1]
-            signal.lfilter(b, a, x, axis=-1, zi=None)
-            a[0]*y[n] = b[0]*x[n] + b[1]*x[n-1] + ... + b[M]*x[n-M]
-                                  - a[1]*y[n-1] - ... - a[N]*y[n-N]
-            """
-            r = rewards[::-1]
-            a = [1, -discount]
-            b = [1]
-            from scipy import signal
-            y = signal.lfilter(b, a, x=r)
-            return y[::-1]
-        true_discounted_returns = alt(episode_reward_record, 0.99)
+        # def alt(rewards, discount):
+        #     """
+        #     C[i] = R[i] + discount * C[i+1]
+        #     signal.lfilter(b, a, x, axis=-1, zi=None)
+        #     a[0]*y[n] = b[0]*x[n] + b[1]*x[n-1] + ... + b[M]*x[n-M]
+        #                           - a[1]*y[n-1] - ... - a[N]*y[n-N]
+        #     """
+        #     r = rewards[::-1]
+        #     a = [1, -discount]
+        #     b = [1]
+        #     from scipy import signal
+        #     y = signal.lfilter(b, a, x=r)
+        #     return y[::-1]
+        # true_discounted_returns = alt(episode_reward_record, 0.99)
+        #
+        # for i in range(1, len(episode_reward_record)):
+        #     return_buffer.append([replay_buffer[-i][0], replay_buffer[-i][1],
+        #                           true_discounted_returns[-i]])
 
-        for i in range(1, len(episode_reward_record)):
-            return_buffer.append([replay_buffer[-i][0], replay_buffer[-i][1],
-                                  true_discounted_returns[-i]])
+        if len(render_buffer) > 0:
+            from moviepy.editor import ImageSequenceClip
+
+            clip = ImageSequenceClip(render_buffer, fps=5)
+            clip.write_gif("IQNViz2/ep" + str(ep_id) + '.gif', fps=5)
+            render_buffer = []
 
         episode_reward_record = []
         num_steps = 0
+        ep_id += 1
 
     if len(replay_buffer) >= batch_sz:
         batch = random.sample(replay_buffer, batch_sz)
@@ -273,15 +329,15 @@ for frame_idx in range(1, num_frames + 1):
         loss, _ = train(x_batch, a_batch, r_batch, x_p_batch, t_batch)
         losses.append(loss)
 
-    if len(return_buffer) >= batch_sz:
-        batch = random.sample(return_buffer, batch_sz)
-
-        x_batch = [i[0] for i in batch]
-        a_batch = [i[1] for i in batch]
-        return_batch = [i[2] for i in batch]
-
-        loss, _ = train(x_batch, a_batch, true_return=return_batch)
-        sampling_losses.append(loss)
+    # if len(return_buffer) >= batch_sz:
+    #     batch = random.sample(return_buffer, batch_sz)
+    #
+    #     x_batch = [i[0] for i in batch]
+    #     a_batch = [i[1] for i in batch]
+    #     return_batch = [i[2] for i in batch]
+    #
+    #     loss, _ = train(x_batch, a_batch, true_return=return_batch)
+    #     sampling_losses.append(loss)
 
     #if frame_idx % 200 == 0:
     #    plot(frame_idx, all_rewards, losses)
