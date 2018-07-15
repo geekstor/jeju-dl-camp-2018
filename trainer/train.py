@@ -23,12 +23,13 @@ cfg_manager = ConfigurationManager(config_file_loc)
 import time
 start_time = time.time()
 
-os.makedirs(parent_dir / str(start_time))
+os.makedirs(str(parent_dir / str(start_time)))
 
 cfg_manager["TRAIN_FOLDER"] = str(parent_dir / str(start_time))
 
 from shutil import copyfile
-copyfile(config_file_loc, parent_dir / str(start_time) / "config.json")
+copyfile(str(config_file_loc), 
+         str(parent_dir / str(start_time) / "config.json"))
 
 from environment import Environment
 e = Environment(cfg_manager)

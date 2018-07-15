@@ -241,31 +241,21 @@ class SonicActionWrapper(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.env.action_space.n = 8
-        self.step_count = 0
-
-    def _reset(self):
-        self.step_count = 0
-        return self.env.reset()
 
     def _step(self, action):
-        self.step_count += 1
         if action == 0:
-            x_p, r, t, info = self.env.step([0] * 12)
+            return  self.env.step([0] * 12)
         elif action == 1:
-            x_p, r, t, info = self.env.step([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
+            return self.env.step([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
         elif action == 2:
-            x_p, r, t, info = self.env.step([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
+            return  self.env.step([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
         elif action == 3:
-            x_p, r, t, info = self.env.step([0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+            return self.env.step([0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0])
         elif action == 4:
-            x_p, r, t, info = self.env.step([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0])
+            return self.env.step([0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0])
         elif action == 5:
-            x_p, r, t, info = self.env.step([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+            return self.env.step([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
         elif action == 6:
-            x_p, r, t, info = self.env.step([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+            return  self.env.step([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
         elif action == 7:
-            x_p, r, t, info = self.env.step([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
-        if self.step_count == 4500:
-            return x_p, r, True, info
-        else:
-            return x_p, r, t, info
+            return self.env.step([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])

@@ -19,8 +19,8 @@ JSON Input Schema:
 
 class ConfigurationManager:
     def __init__(self, config_file_loc):
-        file = open(config_file_loc)
-        self.parsed_json = json.load(file)
+        f = config_file_loc.open()
+        self.parsed_json = json.load(f)
 
     def parse_and_return_dictionary(self, section_name,
                                     required_params):
