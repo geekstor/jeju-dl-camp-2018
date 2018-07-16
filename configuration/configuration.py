@@ -24,12 +24,11 @@ class ConfigurationManager:
 
     def parse_and_return_dictionary(self, section_name,
                                     required_params):
+        this_section = []
+        if section_name in self.parsed_json:
+            this_section = self.parsed_json[section_name]
 
-        assert(section_name in self.parsed_json)
-        this_section = self.parsed_json[section_name]
-
-        assert(param in this_section
-                for param in required_params)
+            assert(param in this_section for param in required_params)
 
         return this_section
 

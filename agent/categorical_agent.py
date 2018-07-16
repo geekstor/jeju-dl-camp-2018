@@ -11,53 +11,22 @@ from function_approximator.head import SoftmaxFixedAtomsDistributionalHead
 
 
 class CategoricalAgent(agent.DistributionalAgent):
-    required_params = ["COPY_TARGET_FREQUENCY",
-                       "UPDATE_FREQUENCY", "DISCOUNT_FACTOR",
+    required_params = ["UPDATE_FREQUENCY", "DISCOUNT_FACTOR",
                        "V_MIN", "V_MAX"]
 
+    head = SoftmaxFixedAtomsDistributionalHead
+
     def __init__(self, cfg_parser: ConfigurationManager):
-        super().__init__(cfg_parser)
-
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.intra_op_parallelism_threads = 16
-        config.inter_op_parallelism_threads = 16
-        self.sess = tf.Session(config=config)
-
-        self.cfg_parser = cfg_parser
-
-        self.num_updates = 0
-
+        super().__init__(cfg_parser, CategoricalAgent.head)
         self.cfg = cfg_parser.parse_and_return_dictionary(
             "AGENT", CategoricalAgent.required_params)
 
-        from function_approximator import GeneralNetwork
-        with tf.variable_scope("train_net"):
-            self.train_network_base = GeneralNetwork(cfg_parser)
-            self.train_network = SoftmaxFixedAtomsDistributionalHead(
-                cfg_parser, self.train_network_base)
-        with tf.variable_scope("target_net"):
-            self.target_network_base = GeneralNetwork(cfg_parser)
-            self.target_network = SoftmaxFixedAtomsDistributionalHead(
-                cfg_parser, self.target_network_base)
-
-        from util.util import get_copy_op, get_vars_with_scope
-        self.copy_operation = get_copy_op("train_net",
-                                          "target_net")
-
-        from memory.experience_replay import ExperienceReplay
-        self.experience_replay = ExperienceReplay(cfg_parser)
-
         self.build_networks()
 
-        init = tf.global_variables_initializer()
-        self.sess.run(init)
-
-        self.sess.run(self.copy_operation)
-
         self.setup_animation()
-        self.saver = tf.train.Saver(var_list=get_vars_with_scope("train_net") + get_vars_with_scope("target_net"),
-                                    max_to_keep=1000, keep_checkpoint_every_n_hours=1)
+        # self.saver = tf.train.Saver(var_list=get_vars_with_scope("train_net") + get_vars_with_scope("target_net"),
+        #                             max_to_keep=1000, keep_checkpoint_every_n_hours=1)
+        self.prepare()
 
     def setup_animation(self):
         num_actions = len(self.train_network.actions)
@@ -202,20 +171,6 @@ class CategoricalAgent(agent.DistributionalAgent):
         return self.sess.run(fetches=self.train_network.argmax_action,
                              feed_dict={self.train_network_base.x: state})
 
-    def learn(self, experiences):
-        batch_x = np.array([i[0] for i in experiences])
-        batch_a = [i[1] for i in experiences]
-        batch_x_p = np.array([i[3] for i in experiences])
-        batch_r = [i[2] for i in experiences]
-        batch_t = [i[4] for i in experiences]
-
-        return self.sess.run([self.train_step],
-                             feed_dict={self.train_network_base.x: batch_x,
-                                        self.action_placeholder: batch_a,
-                                        self.target_network_base.x: batch_x_p,
-                                        self.r: batch_r,
-                                        self.t: batch_t})
-
     def act(self, x):
         if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
             return self.train_network.act_to_send(
@@ -244,24 +199,8 @@ class CategoricalAgent(agent.DistributionalAgent):
 
         return data
 
-    def add(self, x, a, r, x_p, t):
-        self.experience_replay.add([x, a, r, x_p, not t])
-
-    def update(self, x, a, r, x_p, t):
-        self.num_updates += 1
-        self.add(x, a, r, x_p, t)
-
-        if self.experience_replay.size() > self.cfg["MINIBATCH_SIZE"]:
-            self.learn(self.experience_replay.sample(self.cfg["MINIBATCH_SIZE"]))
-
-        if self.num_updates > 0 and \
-            self.num_updates % self.cfg["COPY_TARGET_FREQ"] == 0:
-            self.sess.run(self.copy_operation)
-            print("Copied.")
-            assert(np.allclose(self.sess.run(self.train_network.y, feed_dict={self.train_network_base.x: [x]}),
-                   self.sess.run(self.target_network.y, feed_dict={self.target_network_base.x: [x]})))
-
-        if self.num_updates > 0 and "SAVE_FREQ" in self.cfg and \
-            self.num_updates % self.cfg["SAVE_FREQ"] == 0:
-                self.saver.save(sess=self.sess, global_step=self.num_updates,
-                                save_path=self.cfg_parser["TRAIN_FOLDER"] + "/model", write_meta_graph=True)
+    # def update(self, x, a, r, x_p, t):
+    #     if self.num_updates > 0 and "SAVE_FREQ" in self.cfg and \
+    #         self.num_updates % self.cfg["SAVE_FREQ"] == 0:
+    #             self.saver.save(sess=self.sess, global_step=self.num_updates,
+    #                             save_path=self.cfg_parser["TRAIN_FOLDER"] + "/model", write_meta_graph=True)

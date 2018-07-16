@@ -13,10 +13,6 @@ class GeneralNetwork:
                        "STATE_DTYPE"]
 
     def __init__(self, config_parser: ConfigurationManager):
-
-        from tensorflow.contrib import framework
-        print(framework.get_name_scope())
-
         self.cfg = config_parser.parse_and_return_dictionary(
             "NETWORK", GeneralNetwork.required_params)
 

@@ -1,1 +1,2 @@
 from function_approximator.network import GeneralNetwork
+from function_approximator.head import Head

@@ -10,11 +10,11 @@
   },
 
   "HEAD": {
-    "NB_ATOMS": 51
+    "EMBEDDING_SIZE": 64
   },
 
   "AGENT": {
-    "TYPE": "QUANTILE_REGRESSION",
+    "TYPE": "IMPLICIT_QUANTILE",
     "UPDATE_FREQUENCY": 1,
     "DISCOUNT_FACTOR": 0.99,
     "COPY_TARGET_FREQ": 1000,

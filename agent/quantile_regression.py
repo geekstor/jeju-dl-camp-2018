@@ -10,44 +10,18 @@ from function_approximator.head import FixedAtomsDistributionalHead
 
 
 class QuantileRegressionAgent(agent.DistributionalAgent):
-    required_params = ["COPY_TARGET_FREQUENCY",
-                       "UPDATE_FREQUENCY", "DISCOUNT_FACTOR"]
+    required_params = ["UPDATE_FREQUENCY", "DISCOUNT_FACTOR", "NB_ATOMS"]
+
+    head = FixedAtomsDistributionalHead
 
     def __init__(self, cfg_parser: ConfigurationManager):
-        super().__init__(cfg_parser)
-        self.cfg_parser = cfg_parser
-
-        from util.util import build_session
-        self.sess = build_session(cfg_parser)
-
+        super().__init__(cfg_parser, QuantileRegressionAgent.head)
         self.cfg = cfg_parser.parse_and_return_dictionary(
             "AGENT", QuantileRegressionAgent.required_params)
 
-        from memory.experience_replay import ExperienceReplay
-        self.experience_replay = ExperienceReplay(cfg_parser)
-
-        from function_approximator import GeneralNetwork
-        with tf.variable_scope("train_net"):
-            self.train_network_base = GeneralNetwork(cfg_parser)
-            self.train_network = FixedAtomsDistributionalHead(
-                cfg_parser, self.train_network_base)
-        with tf.variable_scope("target_net"):
-            self.target_network_base = GeneralNetwork(cfg_parser)
-            self.target_network = FixedAtomsDistributionalHead(
-                cfg_parser, self.target_network_base)
-
         self.build_networks()
 
-        from util.util import get_copy_op
-        self.copy_operation = get_copy_op("train_net",
-                                          "target_net")
-
-        init = tf.global_variables_initializer()
-        self.sess.run(init)
-
-        self.sess.run(self.copy_operation)
-
-        self.num_updates = 0
+        self.prepare()
 
     def build_networks(self):
         batch_dim_range = tf.range(tf.shape(self.target_network_base.x)[0], dtype=tf.int32)
@@ -110,27 +84,13 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         return self.sess.run(fetches=self.train_network.argmax_action,
                              feed_dict={self.train_network_base.x: state})
 
-    def learn(self, experiences):
-        batch_x = np.array([i[0] for i in experiences])
-        batch_a = [i[1] for i in experiences]
-        batch_x_p = np.array([i[3] for i in experiences])
-        batch_r = [i[2] for i in experiences]
-        batch_t = [i[4] for i in experiences]
-
-        return self.sess.run([self.train_step],
-                             feed_dict={self.train_network_base.x: batch_x,
-                                        self.action_placeholder: batch_a,
-                                        self.target_network_base.x: batch_x_p,
-                                        self.r: batch_r,
-                                        self.t: batch_t})
-
     def act(self, x):
         if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
-            return [self.train_network.act_to_send(
+            return self.train_network.act_to_send(
                 random.choice(self.train_network.actions)
-            )]
+            )
         else:
-            return [self.train_network.act_to_send(self.greedy_action([x])[0])]
+            return self.train_network.act_to_send(self.greedy_action([x])[0])
 
     def viz(self, x, rgb_x):
         plt.switch_backend("Agg")
@@ -162,20 +122,3 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
 
         return data
-
-    def add(self, x, a, r, x_p, t):
-        self.experience_replay.add([x, a, r, x_p, not t])
-
-    def update(self, x, a, r, x_p, t):
-        self.num_updates += 1
-        self.add(x, a, r, x_p, t)
-
-        if self.experience_replay.size() > self.cfg["MINIBATCH_SIZE"]:
-            self.learn(self.experience_replay.sample(self.cfg["MINIBATCH_SIZE"]))
-
-        if self.num_updates > 0 and \
-            self.num_updates % self.cfg["COPY_TARGET_FREQ"] == 0:
-            self.sess.run(self.copy_operation)
-            print("Copied.")
-            assert(np.allclose(self.sess.run(self.train_network.y, feed_dict={self.train_network_base.x: [x]}),
-                   self.sess.run(self.target_network.y, feed_dict={self.target_network_base.x: [x]})))
