@@ -18,7 +18,10 @@
     "UPDATE_FREQUENCY": 1,
     "DISCOUNT_FACTOR": 0.99,
     "COPY_TARGET_FREQ": 1000,
-    "MINIBATCH_SIZE": 32
+    "MINIBATCH_SIZE": 32,
+    "N": 8,
+    "N_PRIME": 16,
+    "K": 32
   },
 
   "EXPERIENCE_REPLAY": {
