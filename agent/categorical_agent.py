@@ -29,7 +29,7 @@ class CategoricalAgent(agent.DistributionalAgent):
         self.prepare()
 
     def setup_animation(self):
-        num_actions = len(self.train_network.actions)
+        num_actions = self.train_network.num_actions
 
         plt.subplot2grid((num_actions, num_actions), (0, 0),
                          colspan=num_actions - 1, rowspan=num_actions)
@@ -173,11 +173,9 @@ class CategoricalAgent(agent.DistributionalAgent):
 
     def act(self, x):
         if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
-            return self.train_network.act_to_send(
-                random.choice(self.train_network.actions)
-            )
+            return random.randint(0, self.train_network.num_actions - 1)
         else:
-            return self.train_network.act_to_send(self.greedy_action([x])[0])
+            return self.greedy_action([x])[0]
 
     def viz(self, x, rgb_x):
         # Plot

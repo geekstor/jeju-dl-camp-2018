@@ -4,6 +4,8 @@ import cv2
 import gym
 import numpy as np
 from gym import spaces
+from environment import Environment
+from configuration import ConfigurationManager
 
 cv2.ocl.setUseOpenCL(False)
 
@@ -244,11 +246,11 @@ class SonicActionWrapper(gym.Wrapper):
 
     def _step(self, action):
         if action == 0:
-            return  self.env.step([0] * 12)
+            return self.env.step([0] * 12)
         elif action == 1:
             return self.env.step([0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
         elif action == 2:
-            return  self.env.step([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
+            return self.env.step([0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
         elif action == 3:
             return self.env.step([0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0])
         elif action == 4:
@@ -256,6 +258,23 @@ class SonicActionWrapper(gym.Wrapper):
         elif action == 5:
             return self.env.step([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
         elif action == 6:
-            return  self.env.step([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
+            return self.env.step([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])
         elif action == 7:
             return self.env.step([1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
+
+
+class NetworkActionToEnvAction(gym.Wrapper):
+    required_params = []
+
+    def __init__(self, env: Environment, config_parser: ConfigurationManager):
+        gym.Wrapper.__init__(self, env.env)
+        self.cfg = config_parser.parse_and_return_dictionary(
+            "ENVIRONMENT", NetworkActionToEnvAction.required_params)
+
+        if "ACTION_SPECIFICATIONS" in self.cfg:
+            self.actions = self.cfg["ACTION_SPECIFICATIONS"]
+        else:
+            self.actions = list(range(config_parser.parsed_json["DEFAULT_NUM_ACTIONS"]))
+
+    def step(self, action):
+        return self.env.step(self.actions[action])

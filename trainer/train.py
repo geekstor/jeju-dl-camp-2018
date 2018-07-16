@@ -51,6 +51,11 @@ cfg_manager["DEFAULT_NUM_ACTIONS"] = e.num_actions()
 cfg_manager["DEFAULT_OBS_DIMS"] = e.observation_dims()
 # ----------------------------------------- #
 
+# --- Wrap environment so that network outputs lead to correct actions --- #
+from util.wrappers import NetworkActionToEnvAction
+e = NetworkActionToEnvAction(e, cfg_manager)
+# ------------------------------------------------------------------------ #
+
 # Parse Agent. Also parses Optimizer, Network, and (TODO: Expl. Pol.)
 agent = None
 if cfg_manager["AGENT"]["TYPE"] == "CATEGORICAL":

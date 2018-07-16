@@ -22,6 +22,7 @@ Methods:
 
 '''
 
+
 class Environment:
     required_params = ["ENVIRONMENT_TYPE"]
 

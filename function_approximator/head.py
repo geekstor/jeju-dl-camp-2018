@@ -11,19 +11,12 @@ class Head:
 
     def __init__(self, config_parser: ConfigurationManager):
         self.cfg = config_parser.parse_and_return_dictionary(
-            "HEAD", Head.required_params)
+            "ENVIRONMENT", Head.required_params)
 
         if "ACTION_SPECIFICATIONS" in self.cfg:
-            self.actions = self.cfg["ACTION_SPECIFICATIONS"]
+            self.num_actions = len(self.cfg["ACTION_SPECIFICATIONS"])
         else:
-            self.actions = list(range(config_parser.parsed_json["DEFAULT_NUM_ACTIONS"]))
-
-    def act_to_send(self, action):
-        # TODO: Update Agent to use this function.
-        # TODO: Important for games where action space is modified!
-
-        return self.actions[action]
-
+            self.num_actions = config_parser.parsed_json["DEFAULT_NUM_ACTIONS"]
 
 # For Quantile Regression DQN.
 class FixedAtomsDistributionalHead(Head):
@@ -40,12 +33,12 @@ class FixedAtomsDistributionalHead(Head):
         self.flattened_dist = layers.dense(
             name="flattened_dists",
             inputs=net.last_op,
-            units=len(self.actions) * self.cfg["NB_ATOMS"],
+            units=self.num_actions * self.cfg["NB_ATOMS"],
             activation=None
         )
 
         # Unflatten
-        self.y = tf.reshape(self.flattened_dist, [-1, len(self.actions),
+        self.y = tf.reshape(self.flattened_dist, [-1, self.num_actions,
             self.cfg["NB_ATOMS"]], name="per_action_dist")
 
 
@@ -92,7 +85,7 @@ class IQNHead(Head):
         mul = tf.einsum('bnj,bj->bnj', self.phi, self.psi)
 
         self.q_dist = tf.transpose(
-            tf.layers.dense(inputs=mul, units=len(self.actions), activation=None),
+            tf.layers.dense(inputs=mul, units=self.num_actions, activation=None),
             perm=[0, 2, 1]
         )
 
