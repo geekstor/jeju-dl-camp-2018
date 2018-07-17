@@ -1,9 +1,0 @@
-name: rainbow
-channels:
-  - pytorch
-dependencies:
-  - plotly
-  - pytorch
-  - pip:
-    - atari-py
-    - opencv-python
