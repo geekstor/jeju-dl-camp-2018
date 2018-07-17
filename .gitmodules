@@ -1,0 +1,6 @@
+[submodule "benchmarks/baselines"]
+	path = benchmarks/baselines
+	url = https://github.com/openai/baselines.git
+[submodule "benchmarks/retro-baselines"]
+	path = benchmarks/retro-baselines
+	url = https://github.com/openai/retro-baselines.git
