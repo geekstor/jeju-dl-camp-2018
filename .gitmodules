@@ -4,3 +4,6 @@
 [submodule "benchmarks/retro-baselines"]
 	path = benchmarks/retro-baselines
 	url = https://github.com/openai/retro-baselines.git
+[submodule "benchmarks/RetroCodes"]
+	path = benchmarks/RetroCodes
+	url = https://github.com/eyounx/RetroCodes.git
