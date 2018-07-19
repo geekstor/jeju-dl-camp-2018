@@ -21,37 +21,11 @@ class CategoricalAgent(agent.DistributionalAgent):
         self.cfg = cfg_parser.parse_and_return_dictionary(
             "AGENT", CategoricalAgent.required_params)
 
-        self.build_networks()
+        self.build_loss_op()
 
-        self.setup_animation()
-        # self.saver = tf.train.Saver(var_list=get_vars_with_scope("train_net") + get_vars_with_scope("target_net"),
-        #                             max_to_keep=1000, keep_checkpoint_every_n_hours=1)
-        self.prepare()
+        self.prepare(self.loss)
 
-    def setup_animation(self):
-        num_actions = self.train_network.num_actions
-
-        plt.subplot2grid((num_actions, num_actions), (0, 0),
-                         colspan=num_actions - 1, rowspan=num_actions)
-
-        self.img_obj = plt.imshow(np.zeros(shape=(84, 84, 3)), aspect="auto", interpolation="nearest")
-
-        l, s = np.linspace(self.cfg["V_MIN"],
-                           self.cfg["V_MAX"],
-                           self.train_network.cfg["NB_ATOMS"],
-                           retstep=True)
-        self.bar_obj = [None] * num_actions
-        for i in range(num_actions):
-            plt.subplot2grid((num_actions, num_actions), (i, num_actions - 1),
-                             colspan=1, rowspan=1)
-            # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1))
-            self.bar_obj[i] = plt.bar(l - s / 2., height=[1 / self.train_network.cfg["NB_ATOMS"]] *
-                                       self.train_network.cfg["NB_ATOMS"], width=s,
-                    color="brown", edgecolor="red", linewidth=0.5, align="edge")
-
-        plt.gcf().canvas.draw()
-
-    def build_networks(self):
+    def build_loss_op(self):
         Z, delta_z = np.linspace(self.cfg["V_MIN"], self.cfg["V_MAX"],
                                  self.train_network.cfg["NB_ATOMS"],
                                  retstep=True)
@@ -63,10 +37,6 @@ class CategoricalAgent(agent.DistributionalAgent):
             with tf.variable_scope(var_scope):
                 graph.post_mul = tf.reduce_sum(graph.y * Z,
                                                axis=-1)
-
-                # Take sum to get the expected state-action values for each action
-                # graph.actions = tf.reduce_sum(graph.post_mul, axis=2,
-                #                               name="expected_state_action_value")
 
                 graph.argmax_action = tf.argmax(graph.post_mul, axis=-1,
                                                 output_type=tf.int32,
@@ -83,13 +53,8 @@ class CategoricalAgent(agent.DistributionalAgent):
             ), name="gather_nd_for_batch_argmax_action_q_dists"
         )  # Axis = 1 => [N, 2]
 
-        # Placeholder for reward and terminal
-        self.r = tf.placeholder(name="reward", dtype=tf.float32, shape=(None,))
-        self.t = tf.placeholder(name="terminal", dtype=tf.uint8, shape=(None,))
-        # TODO: Optimize memory uint8 -> bool (check if casting works to float)
-
-        self.Tz = tf.clip_by_value(tf.reshape(self.r, [-1, 1]) + self.cfg["DISCOUNT_FACTOR"] *
-                                   tf.cast(tf.reshape(self.t, [-1, 1]), tf.float32) * Z,
+        self.Tz = tf.clip_by_value(tf.reshape(self.reward_placeholder, [-1, 1]) + self.cfg["DISCOUNT_FACTOR"] *
+                                   tf.cast(tf.reshape(self.terminal_placeholder, [-1, 1]), tf.float32) * Z,
                                    clip_value_min=self.cfg["V_MIN"],
                                    clip_value_max=self.cfg["V_MAX"],
                                    name="Tz")
@@ -143,10 +108,6 @@ class CategoricalAgent(agent.DistributionalAgent):
         batch_size_range = tf.range(start=0,
                                         limit=tf.shape(self.train_network_base.x)[0])
 
-        # Given you took this action.
-        self.action_placeholder = tf.placeholder(name="action",
-                                                 dtype=tf.int32, shape=[None, ])
-
         # Compute Q-Dist. for the action.
         self.action_q_dist = tf.gather_nd(self.train_network.y,
                                           tf.stack((batch_size_range,
@@ -158,11 +119,6 @@ class CategoricalAgent(agent.DistributionalAgent):
 
         self.loss = tf.reduce_mean(self.loss_sum)
 
-        from optimizer.optimizer import get_optimizer
-        self.train_step = get_optimizer(self.cfg_parser, self.loss,
-                                        tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                                              scope='train_net'))
-
     def distribution(self, state):
         return self.sess.run(fetches=[self.train_network.y],
                              feed_dict={self.train_network_base.x: state})
@@ -172,33 +128,10 @@ class CategoricalAgent(agent.DistributionalAgent):
                              feed_dict={self.train_network_base.x: state})
 
     def act(self, x):
+        greedy_f = lambda inp: self.greedy_action([inp])[0]
+        exploratory_f = lambda inp: random.randint(0, self.cfg_parser["NUM_ACTIONS"] - 1)
+
         if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
-            return random.randint(0, self.train_network.num_actions - 1)
+            return random.randint(0, self.cfg_parser["NUM_ACTIONS"] - 1)
         else:
             return self.greedy_action([x])[0]
-
-    def viz(self, x, rgb_x):
-        # Plot
-        h = np.squeeze(self.sess.run(fetches=self.train_network.y,
-                       feed_dict={self.train_network_base.x: x}))
-
-        from scipy.misc import imresize
-        self.img_obj.set_data(
-            imresize(rgb_x, [rgb_x.shape[0] * 10, rgb_x.shape[1] * 10])
-        )
-        self.img_obj.autoscale()
-
-        for i in range(h.shape[0]):
-            for rect, hi in zip(self.bar_obj[i], h[i]):
-                rect.set_height(hi)
-
-        data = np.fromstring(plt.gcf().canvas.tostring_rgb(), dtype=np.uint8)
-        data = data.reshape(plt.gcf().canvas.get_width_height()[::-1] + (3,))
-
-        return data
-
-    # def update(self, x, a, r, x_p, t):
-    #     if self.num_updates > 0 and "SAVE_FREQ" in self.cfg and \
-    #         self.num_updates % self.cfg["SAVE_FREQ"] == 0:
-    #             self.saver.save(sess=self.sess, global_step=self.num_updates,
-    #                             save_path=self.cfg_parser["TRAIN_FOLDER"] + "/model", write_meta_graph=True)

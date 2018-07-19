@@ -104,10 +104,10 @@ class Manager():
         ep_start_time = datetime.datetime.now()
         x = self.env.reset()
 
-        for step in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
-            a = agent.act(x) # TODO: Move act_to_send logic outside head!
+        for steps in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
+            a = agent.predict(x)
             x_prime, r, done, _ = self.env.step(a)
-            agent.update(x, a, r, x_prime, done)
+            agent.train(x, a, r, x_prime, done)
 
             ep_steps += 1
             ep_r += r
@@ -125,7 +125,8 @@ class Manager():
             if done:
                 all_r.append(ep_r)
                 print("Episode Num:.", ep_num,
-                      "Steps:", ep_steps,
+                      "Ep. Steps:", ep_steps,
+                      "Total Steps:", steps,
                       "Episode Reward: ", ep_r,
                       "Mean Reward: ", np.mean(all_r) if
                       all_r.maxlen is None or
@@ -136,6 +137,7 @@ class Manager():
                 ep_num += 1
                 ep_steps = 0
                 ep_r = 0
+
 
 m = Manager(e, agent)
 m.run()

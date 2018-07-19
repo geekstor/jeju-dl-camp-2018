@@ -17,11 +17,19 @@
     "TYPE": "IMPLICIT_QUANTILE",
     "UPDATE_FREQUENCY": 1,
     "DISCOUNT_FACTOR": 0.99,
-    "COPY_TARGET_FREQ": 1000,
+    "COPY_TARGET_FREQ": 500,
     "MINIBATCH_SIZE": 32,
-    "N": 8,
+    "N": 16,
     "N_PRIME": 16,
-    "K": 32
+    "K": 32,
+    "SAVE_FREQ": 1000
+  },
+
+  "POLICY": {
+    "EXPECTATION": {
+      "TYPE": "ADAPTIVE_LSTM",
+      "LSTM_UNITS": 1
+    }
   },
 
   "EXPERIENCE_REPLAY": {
@@ -33,6 +41,7 @@
     "LEARNING_RATE": 1e-2,
     "EPSILON": 1e-8
   },
+
   "MANAGER": {
     "NUM_TRAIN_STEPS": 20000,
     "SAVE_AGENT_FREQ": 1000,

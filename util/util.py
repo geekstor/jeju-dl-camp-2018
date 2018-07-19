@@ -16,7 +16,7 @@ def get_copy_op(scope1, scope2):
                                     sorted(target_variables, key=lambda x: x.name)):
         assign_ops.append(tf.assign(target_var, main_var))
 
-    print(len(assign_ops))
+    print("Copying Ops.:", len(assign_ops))
 
     return tf.group(*assign_ops)
 
@@ -39,8 +39,9 @@ def get_session(cfg_params: ConfigurationManager):
 
     return tf.Session(config=config)
 
+
 def build_train_and_target_general_network_with_head(
-    head: Head, cfg_parser
+    head, cfg_parser
 ):
     with tf.variable_scope("train_net"):
         train_network_base = GeneralNetwork(cfg_parser)
@@ -51,8 +52,11 @@ def build_train_and_target_general_network_with_head(
         target_network = head(
             cfg_parser, target_network_base)
 
-    copy_operation = get_copy_op("train_net",
-                                      "target_net")
+    copy_operation = get_copy_op("train_net", "target_net")
+
+    saver = tf.train.Saver(var_list=get_vars_with_scope("train_net") +
+                           get_vars_with_scope("target_net"),
+                           max_to_keep=100, keep_checkpoint_every_n_hours=1)
 
     return [train_network_base, train_network,
-            target_network_base, target_network, copy_operation]
+            target_network_base, target_network, copy_operation, saver]

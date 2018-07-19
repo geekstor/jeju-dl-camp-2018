@@ -25,6 +25,10 @@ class ConfigurationManager:
     def parse_and_return_dictionary(self, section_name,
                                     required_params):
         this_section = []
+
+        if "." in section_name:
+            return self[section_name]
+
         if section_name in self.parsed_json:
             this_section = self.parsed_json[section_name]
 
@@ -33,9 +37,17 @@ class ConfigurationManager:
         return this_section
 
     def __getitem__(self, key):
-
-
-        return self.parsed_json[key]
+        keys = key.split('.')
+        rv = self.parsed_json
+        for k in keys:
+            rv = rv[k]
+        return rv
 
     def __setitem__(self, key, value):
-        self.parsed_json[key] = value
+        keys = key.split('.')
+        rv = self.parsed_json
+        for i, k in zip(range(len(keys)), keys):
+            if i == len(keys) - 1:
+                break
+            rv = rv[k]
+        rv[key] = value

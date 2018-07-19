@@ -72,9 +72,10 @@ class IQNHead(Head):
         self.num_samples = tf.placeholder(dtype=tf.int32, shape=[],
                                           name="num_samples")
 
-        self.tau = tf.random_uniform(shape=[tf.shape(self.psi)[0], self.num_samples],
-                                minval=0, maxval=1,
-                                dtype=tf.float32)
+        # Preprocessed tau (choose number of samples and pass through beta as necessary)
+        from action_policy.distorted_expectation import distorted_expectation
+        self.tau = distorted_expectation(config_parser,
+                                         psi=self.psi, N_placeholder=self.num_samples)
         import math as m
         pi = tf.constant(m.pi)
 
