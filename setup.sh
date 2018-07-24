@@ -35,7 +35,7 @@ sleep 10s
 
 conda env create
 
-source activate simplesonic
+source activate rl1
 
 git clone --recursive https://github.com/openai/retro-contest.git
 pip install -e "retro-contest/support[docker,rest]"
