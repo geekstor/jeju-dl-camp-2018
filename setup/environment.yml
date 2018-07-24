@@ -1,7 +1,7 @@
-name: rl1
+name: simplesonic
 dependencies:
     - python==3.6
-    - scikit-learn==0.19.1
+    - scikit-learn
     - cython
     - openblas
     - numpy
@@ -11,13 +11,7 @@ dependencies:
     - scikit-image
     - scipy
     - h5py
-    - flask-socketio
-    - seaborn
     - pandas
-    - ffmpeg
-    - imageio
-    - nltk
-    - gensim
     - pip:
         - jupyter
         - moviepy
