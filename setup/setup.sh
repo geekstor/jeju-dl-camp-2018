@@ -1,8 +1,9 @@
+#!/bin/bash
 curl -fsSL get.docker.com -o get-docker.sh
 sh get-docker.sh
 
-wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash Miniconda3-latest-Linux-x86_64.sh
+#wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#bash Miniconda3-latest-Linux-x86_64.sh
 
 sudo apt-get update
 sudo apt install libgl1-mesa-glx
@@ -17,13 +18,14 @@ sudo apt-get install htop
 sudo apt-get install moreutils
 sudo apt-get update
 
-sleep 10s
-source ~/.bashrc
-sleep 10s
+sleep 5s
 
 wget https://raw.githubusercontent.com/fastai/courses/master/setup/install-gpu.sh
 sudo sh install-gpu.sh
 
+sleep 10s
+source ~/.bashrc
+sleep 10s
 
 sleep 10s
 conda env create
