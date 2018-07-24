@@ -41,7 +41,7 @@ class Environment:
             gym_env_required_params = ["GYM_ENV_NAME"]
             gym_env_cfg = config_parser.parse_and_return_dictionary(
                 "ENVIRONMENT", gym_env_required_params)
-            self.env = make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"])
+            self.env = make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"], bk2dir=config_parser["TRAIN_FOLDER"])
             from util.wrappers import wrap_env, SonicActionWrapper
             if "WRAP_SONIC" in gym_env_cfg and gym_env_cfg["WRAP_SONIC"]:
                 self.env = SonicActionWrapper(self.env)

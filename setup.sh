@@ -13,8 +13,8 @@ sudo apt-get update
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
 sleep 10s
-conda env create
-sleep 10s
 source ~/.bashrc
+sleep 10s
+conda env create
 sleep 10s
 python -m retro.import.sega_classics
