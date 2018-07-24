@@ -4,12 +4,11 @@ Evaluate Generalization with Distributional RL Agents
 
 
 setup.sh
-  * install dependencies (osx, windows, gcloud compatible)
-  * setup validation environment
-  * setup evaluation environment
+  * install dependencies (local eval)
+  * setup docker eval environment
 
 models
-  * RL agent (train.py) (evaluate.py)
+  * run.sh --rlagent
 
 
 

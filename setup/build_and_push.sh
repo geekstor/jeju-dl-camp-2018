@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -x
 
-export DOCKER_REGISTRY='retrocontestviebtzaqpdksjflr.azurecr.io'
+export DOCKER_REGISTRY='retrocontestviebtzaqpdksjflr_1.gcr.io'
 export docker_registry_username='xxx'
 export docker_registry_password='xxx'
 
@@ -12,23 +12,18 @@ docker login $DOCKER_REGISTRY \
 #!/usr/bin/env bash
 set -x
 
-export dir=dmr-agent
+export dir=rainbow-agent
 
 rm -rf $dir
 mkdir $dir
 
-cp ../dockerfile/dmr.docker dmr-agent
+cp ./rainbow.docker rainbow-agent
+cp ../models/rainbow.py $dir/agent.py
 
-cp -r ../A3gent/lawking $dir
-cp -r ../A3gent/cpt $dir
-cp -r ../A3gent/detect $dir
-cp -r ../A3gent/detect_model $dir
-
-cp ../A3gent/dmr_agent.py $dir/agent.py
-
-export version='0511_npn_01350_110592000_totalstep3e6_lr_clip'
+export version='0511_npn_01350_110592000_totalstep3e6_lr_clip_1'
 
 cd $dir
-docker build -f dmr.docker -t $DOCKER_REGISTRY/dmr-agent:$version .
+docker build -f rainbow.docker -t $DOCKER_REGISTRY/rainbow-agent:$version .
 
-docker push $DOCKER_REGISTRY/dmr-agent:$version
+docker push $DOCKER_REGISTRY/rainbow-agent:$version
+#gcloud container builds submit --timout 1h1m1s --tag gcr.io/dlcampjeju2018-207503/rl-image .
