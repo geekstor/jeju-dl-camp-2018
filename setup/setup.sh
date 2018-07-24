@@ -8,20 +8,17 @@ sudo apt-get install xvfb
 sudo apt-get install libav-tools
 sudo apt-get install python-opengl
 
+sleep 10s
 source ~/.bashrc
-git clone https://github.com/RishabGargeya/rl-seminar1.git
-cd rl-seminar1
-
+sleep 10s
 conda env create
 
-source activate rl1
-
-# xvfb-run -s python example.py
+source activate simplesonic
 
 git clone --recursive https://github.com/openai/retro-contest.git
 pip install -e "retro-contest/support[docker,rest]"
 
-docker pull openai/retro-env
-docker tag openai/retro-env remote-env
+sudo docker pull openai/retro-env
+sudo docker tag openai/retro-env remote-env
 
 python -m retro.import.sega_classics
