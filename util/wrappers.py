@@ -224,17 +224,17 @@ def make_atari(env_id, cfg):
 def wrap_env(env, cfg):
     """Configure environment for DeepMind-style Atari.
     """
-    if cfg["EPISODIC_LIFE"]:
+    if "EPISODIC_LIFE" in cfg and cfg["EPISODIC_LIFE"]:
         env = EpisodicLifeEnv(env)
     if hasattr(env.unwrapped, "get_action_meaning") and \
             'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
     env = WarpFrame(env)
-    if cfg["SCALED_FLOAT"]:
+    if "SCALED_FLOAT" not in cfg or cfg["SCALED_FLOAT"]:
         env = ScaledFloatFrame(env)
-    if cfg["CLIP_REWARDS"]:
+    if "CLIP_REWARDS" in cfg and cfg["CLIP_REWARDS"]:
         env = ClipRewardEnv(env)
-    if cfg["HISTORY_LEN"] > 0:
+    if "HISTORY_LEN" in cfg and cfg["HISTORY_LEN"] > 0:
         env = FrameStack(env, cfg["HISTORY_LEN"])
     return env
 

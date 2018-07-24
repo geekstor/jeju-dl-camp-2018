@@ -3,6 +3,7 @@
     "ENVIRONMENT_TYPE": "GYM-RETRO",
     "GYM_ENV_NAME": "SonicTheHedgehog-Genesis",
     "GYM_ENV_LEVEL": "LabyrinthZone.Act1",
+    "HISTORY_LEN": 4,
     "WRAP_SONIC": 1
   },
 
