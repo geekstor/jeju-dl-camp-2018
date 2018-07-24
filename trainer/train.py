@@ -105,7 +105,7 @@ class Manager():
         x = self.env.reset()
 
         for steps in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
-            a = agent.predict(x)
+            a = self.agent.predict(x)
             x_prime, r, done, _ = self.env.step(a)
             agent.train(x, a, r, x_prime, done)
 

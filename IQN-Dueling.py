@@ -34,7 +34,7 @@ class IQNNetwork:
 
             # Size [Batch Size, Feature Vec. Size]
 
-            self.calc_beta_tau = tf.placeholder_with_default(False, shape=[])
+            #self.calc_beta_tau = tf.placeholder_with_default(False, shape=[])
 
             self.is_acting = tf.placeholder_with_default(False, shape=[])
 
@@ -42,30 +42,34 @@ class IQNNetwork:
                                     minval=0, maxval=1,
                                     dtype=tf.float32)
 
-            with tf.variable_scope("sampling"):
-                self.a = layers.dense(inputs=self.outs[-1], units=1, activation=tf.nn.sigmoid, trainable=trainable)
+            #with tf.variable_scope("sampling"):
+            #    self.a = layers.dense(inputs=self.outs[-1], units=1, activation=tf.nn.sigmoid, trainable=trainable)
 
-                self.b = layers.dense(inputs=self.outs[-1], units=1, activation=tf.nn.sigmoid, trainable=trainable)
+            #    self.b = layers.dense(inputs=self.outs[-1], units=1, activation=tf.nn.sigmoid, trainable=trainable)
 
-            self.transformed_tau = tf.clip_by_value(self.a, 0, 1) + \
-                                       self.tau * tf.clip_by_value(self.b, 0, 1 - self.a)
+            #self.transformed_tau = tf.clip_by_value(self.a, 0, 1) + \
+            #                           self.tau * tf.clip_by_value(self.b, 0, 1 - self.a)
 
-            phi = tf.layers.dense(inputs=tf.cos(tf.einsum('bn,j->bnj', tf.cond(self.calc_beta_tau, lambda: self.transformed_tau,
-                                                                               lambda: self.tau),
+            phi = tf.layers.dense(inputs=tf.cos(tf.einsum('bn,j->bnj', self.tau,
                                                           tf.range(64, dtype=tf.float32)) * 3.14159265), units=64,
                             activation=tf.nn.relu)
 
             mul = tf.einsum('bnj,bj->bnj', phi, self.outs[-1])
 
-            self.a_dist = tf.transpose(
+            #self.a_dist = tf.transpose(
+            #    tf.layers.dense(inputs=mul, units=num_actions, activation=None),
+            #    perm=[0, 2, 1]
+            #)
+
+            #self.v = tf.layers.dense(inputs=self.outs[-1], units=1, activation=None)
+
+            #self.q_dist = tf.identity(tf.expand_dims(self.v, axis=-1) + self.a_dist - \
+            #              tf.expand_dims(tf.reduce_mean(self.a_dist, axis=1), axis=1), name="q_dist")
+
+            self.q_dist = tf.transpose(
                 tf.layers.dense(inputs=mul, units=num_actions, activation=None),
                 perm=[0, 2, 1]
             )
-
-            self.v = tf.layers.dense(inputs=self.outs[-1], units=1, activation=None)
-
-            self.q_dist = tf.identity(tf.expand_dims(self.v, axis=-1) + self.a_dist - \
-                          tf.expand_dims(tf.reduce_mean(self.a_dist, axis=1), axis=1), name="q_dist")
 
             self.q = tf.reduce_mean(self.q_dist, axis=-1)
 
@@ -100,10 +104,10 @@ class IQN:
         self.q_of_chosen_actions = tf.gather_nd(self.train_net.q,
                                                    self.flat_indices_chosen_actions)
 
-        self.return_placeholder = tf.placeholder(shape=[None, ], dtype=tf.float32)
+        # self.return_placeholder = tf.placeholder(shape=[None, ], dtype=tf.float32)
 
-        self.sampling_loss = tf.losses.absolute_difference(self.q_of_chosen_actions,
-                                                          self.return_placeholder)
+        #self.sampling_loss = tf.losses.absolute_difference(self.q_of_chosen_actions,
+        #                                                  self.return_placeholder)
 
         # OPS. for computing target quantile dist.
         self.flat_indices_for_argmax_action_target_net = tf.stack([self.batch_dim_range,
@@ -135,8 +139,7 @@ class IQN:
             return random.randint(0, self.num_actions - 1)
         else:
             return sess.run(self.train_net.out,
-                            feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: False,
-                                       self.train_net.is_acting: True})
+                            feed_dict={self.train_net.state: x, self.train_net.is_acting: False})
         #return np.random.choice(np.array(list(range(self.num_actions))), p=np.squeeze(sess.run(self.train_net.q_softmax,
         #                     feed_dict={self.train_net.state: x, self.train_net.calc_beta_tau: True, self.train_net.is_acting: True})))
 
@@ -157,6 +160,7 @@ train_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='train_
 target_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_base_net')
 sampling_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='train_base_net/sampling')
 train_variables = [i for i in train_variables if i not in sampling_variables]
+print(train_variables)
 
 assign_ops = []
 for main_var, target_var in zip(sorted(train_variables, key=lambda x : x.name),
@@ -176,22 +180,21 @@ optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 from baselines.common import tf_util
 train_step = tf_util.minimize_and_clip(optimizer, iqn.loss, var_list=train_variables)
 
-optimizer_sampling = tf.train.AdamOptimizer(learning_rate=1e-2)
-train_step_sampling = tf_util.minimize_and_clip(optimizer_sampling, iqn.sampling_loss,
-                                                var_list=sampling_variables)
+#optimizer_sampling = tf.train.AdamOptimizer(learning_rate=1e-2)
+#train_step_sampling = tf_util.minimize_and_clip(optimizer_sampling, iqn.sampling_loss,
+#                                                var_list=sampling_variables)
 
 def train(x, a, r=None, x_p=None, t=None, true_return=None):
-    if true_return is not None:
-        return sess.run([iqn.sampling_loss, train_step_sampling], feed_dict={iqn.train_net.state: x,
-                                                          iqn.action_placeholder: a,
-                                                          iqn.return_placeholder: true_return,
-                                                          iqn.train_net.is_acting: True,
-                                                          iqn.train_net.calc_beta_tau: False})
+    # if true_return is not None:
+    #     return sess.run([iqn.sampling_loss, train_step_sampling], feed_dict={iqn.train_net.state: x,
+    #                                                       iqn.action_placeholder: a,
+    #                                                       iqn.return_placeholder: true_return,
+    #                                                       iqn.train_net.is_acting: True,
+    #                                                       iqn.train_net.calc_beta_tau: False})
     return sess.run([iqn.loss, train_step],
                     feed_dict={iqn.train_net.state: x,
                                iqn.action_placeholder: a,
-                               iqn.r: r, iqn.t: t, iqn.target_net.state: x_p,
-                               iqn.target_net.calc_beta_tau: False})
+                               iqn.r: r, iqn.t: t, iqn.target_net.state: x_p})
 
 init = tf.global_variables_initializer()
 sess.run(init)

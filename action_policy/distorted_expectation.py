@@ -55,20 +55,26 @@ def AdaptiveQuantileChoiceLSTM(cfg_parser: ConfigurationManager, psi, N_placehol
 
     cfg = cfg_parser.parse_and_return_dictionary("POLICY.EXPECTATION", required_params)
 
-    cell = rnn.LSTMCell(num_units=cfg["LSTM_UNITS"], num_proj=1)
+    initial_state = tf.layers.dense(inputs=psi, units=cfg["LSTM_UNITS"])
 
-    x = tf.reshape(tf.tile(psi, [1, N_placeholder]),
-                   [-1, N_placeholder, cfg_parser["NETWORK.DENSE_LAYERS_SPEC"][-1]])
+    cell = rnn.GRUCell(num_units=cfg["LSTM_UNITS"])
+
+    tau_unif = tf.reshape(tf.expand_dims(get_uniform_dist(psi, N_placeholder), dim=-1),
+                          [tf.shape(psi)[0], N_placeholder, 1])
 
     # No need to reset: https://stackoverflow.com/questions/38441589/
     # is-rnn-initial-state-reset-for-subsequent-mini-batches
-    outputs, state = tf.nn.dynamic_rnn(dtype=tf.float32, cell=cell, inputs=x,
-                                       time_major=False)
-    reshaped_out = tf.reshape(outputs, [-1, N_placeholder])
-    tau = tf.nn.sigmoid(reshaped_out)
+    outputs, state = tf.nn.dynamic_rnn(dtype=tf.float32, cell=cell, inputs=tau_unif,
+                                       time_major=False, initial_state=initial_state)
+    output = tf.layers.dense(inputs=outputs, units=1)
+    reshaped_out = tf.reshape(output, [-1, N_placeholder])
+    #tau = tf.nn.sigmoid(reshaped_out)
+    tau = (reshaped_out - tf.reduce_min(reshaped_out)) / \
+           (tf.reduce_max(reshaped_out) - tf.reduce_min(reshaped_out))
     return tau
 
 def CPW(tau, eta):
+    eta = tf.clip_by_value(tf.nn.sigmoid(eta), 1e-1, 1 - 1e-1)
     tau_to_power_eta = tf.pow(tau, eta)
     beta_tau = tau_to_power_eta / tf.pow(tau_to_power_eta +
                                          tf.pow((1 - tau), eta), 1. / eta)

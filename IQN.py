@@ -46,17 +46,16 @@ class IQNNetwork:
             self.tau = tf.cond(self.use_tau_placeholder, lambda: self.tau_placeholder, lambda: self._tau)
 
             with tf.variable_scope("sampling"):
-                self.a = tf.clip_by_value(
-                    layers.dense(inputs=self.outs[-1], units=1,
-                                 activation=None,
-                                 trainable=trainable), 0, 1)
+                self.a = layers.dense(inputs=self.outs[-1], units=1,
+                                 activation=tf.nn.sigmoid,
+                                 trainable=trainable)
                 self.b = tf.clip_by_value(
                     layers.dense(inputs=self.outs[-1], units=1,
                                  activation=None,
                                  trainable=trainable), 0, 1 - self.a
                 )
 
-            self.transformed_tau = self.a + self.tau * self.b
+            self.transformed_tau = tf.stop_gradient(self.tau) * self.a
 
             phi = tf.layers.dense(inputs=tf.cos(tf.einsum('bn,j->bnj', tf.cond(self.calc_beta_tau, lambda: self.transformed_tau,
                                                                                lambda: self.tau),
@@ -174,7 +173,6 @@ copy_operation = tf.group(*assign_ops)
 
 from collections import deque
 replay_buffer = deque(maxlen=50000)
-return_buffer = deque(maxlen=50000)
 
 optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 from baselines.common import tf_util
@@ -200,7 +198,7 @@ def train(x, a, r=None, x_p=None, t=None, true_return=None):
 def viz_dist(x, rgb_x):
     tau = np.linspace(0, 1, 51)
 
-    a, b, h = sess.run(fetches=[iqn.train_net.a[0], iqn.train_net.b[0],
+    a, h = sess.run(fetches=[iqn.train_net.a[0],
                           iqn.train_net.q_dist[0]], feed_dict={iqn.train_net.state: x,
                                                       iqn.train_net.use_tau_placeholder: True,
                                                       iqn.train_net.tau_placeholder: [tau]})
@@ -219,7 +217,6 @@ def viz_dist(x, rgb_x):
         # plt.subplot(len(self.train_network.actions), 2, 2 * (i + 1)))
         plt.stem(tau, h[i], markerfmt=" ")
         plt.plot(a, 0, 'ko')
-        plt.plot(b, 0, 'ko')
 
     plt.pause(0.1)
     plt.gcf().clear()
@@ -256,6 +253,7 @@ num_steps = 0
 batch_sz = 32
 state = env.reset()
 render_buffer = []
+return_buffer = []
 ep_id = 1
 for frame_idx in range(1, num_frames + 1):
     action = iqn.act(np.array([state]), epsilon_by_frame(frame_idx))
@@ -287,30 +285,30 @@ for frame_idx in range(1, num_frames + 1):
         episode_reward = 0
 
 
-        # def alt(rewards, discount):
-        #     """
-        #     C[i] = R[i] + discount * C[i+1]
-        #     signal.lfilter(b, a, x, axis=-1, zi=None)
-        #     a[0]*y[n] = b[0]*x[n] + b[1]*x[n-1] + ... + b[M]*x[n-M]
-        #                           - a[1]*y[n-1] - ... - a[N]*y[n-N]
-        #     """
-        #     r = rewards[::-1]
-        #     a = [1, -discount]
-        #     b = [1]
-        #     from scipy import signal
-        #     y = signal.lfilter(b, a, x=r)
-        #     return y[::-1]
-        # true_discounted_returns = alt(episode_reward_record, 0.99)
-        #
-        # for i in range(1, len(episode_reward_record)):
-        #     return_buffer.append([replay_buffer[-i][0], replay_buffer[-i][1],
-        #                           true_discounted_returns[-i]])
+        def alt(rewards, discount):
+            """
+            C[i] = R[i] + discount * C[i+1]
+            signal.lfilter(b, a, x, axis=-1, zi=None)
+            a[0]*y[n] = b[0]*x[n] + b[1]*x[n-1] + ... + b[M]*x[n-M]
+                                  - a[1]*y[n-1] - ... - a[N]*y[n-N]
+            """
+            r = rewards[::-1]
+            a = [1, -discount]
+            b = [1]
+            from scipy import signal
+            y = signal.lfilter(b, a, x=r)
+            return y[::-1]
+        true_discounted_returns = alt(episode_reward_record, 0.99)
+
+        for i in range(1, len(episode_reward_record)):
+            return_buffer.append([replay_buffer[-i][0], replay_buffer[-i][1],
+                                  true_discounted_returns[-i]])
 
         if len(render_buffer) > 0:
             from moviepy.editor import ImageSequenceClip
 
             clip = ImageSequenceClip(render_buffer, fps=5)
-            clip.write_gif("IQNViz2/ep" + str(ep_id) + '.gif', fps=5)
+            clip.write_gif("IQNViz3/ep" + str(ep_id) + '.gif', fps=5)
             render_buffer = []
 
         episode_reward_record = []
@@ -329,15 +327,15 @@ for frame_idx in range(1, num_frames + 1):
         loss, _ = train(x_batch, a_batch, r_batch, x_p_batch, t_batch)
         losses.append(loss)
 
-    # if len(return_buffer) >= batch_sz:
-    #     batch = random.sample(return_buffer, batch_sz)
-    #
-    #     x_batch = [i[0] for i in batch]
-    #     a_batch = [i[1] for i in batch]
-    #     return_batch = [i[2] for i in batch]
-    #
-    #     loss, _ = train(x_batch, a_batch, true_return=return_batch)
-    #     sampling_losses.append(loss)
+    if len(return_buffer) >= batch_sz:
+        batch = random.sample(return_buffer, batch_sz)
+
+        x_batch = [i[0] for i in batch]
+        a_batch = [i[1] for i in batch]
+        return_batch = [i[2] for i in batch]
+
+        loss, _ = train(x_batch, a_batch, true_return=return_batch)
+        sampling_losses.append(loss)
 
     #if frame_idx % 200 == 0:
     #    plot(frame_idx, all_rewards, losses)

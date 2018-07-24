@@ -14,27 +14,37 @@ Usage:
 # Contains **Abstract** Agents. All functions are pure virtual
 # (will error if any function is not implemented)
 
+
 class Agent:
-    def __init__(self, cfg_parser: ConfigurationManager):
-        pass
+    def __init__(self):
+        self.predict_calls = 0
+        self.evaluate_calls = 0
+        self.train_calls = 0
 
     # Uses exploration strategy/risk-sensitive strategies and returns
     # non-greedy actions appropriately (at least with respect to the true risk-neutral
     # expected value.) Will likely make use of this class' greedy_action method.
     def predict(self, x):
-        raise NotImplementedError
+        self.predict_calls += 1
 
     def evaluate(self, x):
-        raise NotImplementedError
+        self.evaluate_calls += 1
 
     def train(self, x, a, r, x_p, t):
+        self.train_calls += 1
+
+    def y(self, x):
         raise NotImplementedError
+
+    def num_actions(self):
+        raise NotImplementedError
+
 
 class BaseDQNBasedAgent(Agent):
     required_params = ["MINIBATCH_SIZE", "COPY_TARGET_FREQ"]
 
     def __init__(self, cfg_parser: ConfigurationManager, head):
-        super().__init__(cfg_parser)
+        super().__init__()
 
         from util.util import build_train_and_target_general_network_with_head, get_session
         self.sess = get_session(cfg_parser)
@@ -48,9 +58,11 @@ class BaseDQNBasedAgent(Agent):
 
         self.cfg_parser = cfg_parser
 
-        from function_approximator.head import Head
+        from function_approximator.head import QNetworkHead
 
-        self.train_network: Head
+        self.train_network: QNetworkHead
+
+        self.target_network: QNetworkHead
 
         cfg_parser["NUM_ACTIONS"] = self.train_network.num_actions
 
@@ -71,6 +83,11 @@ class BaseDQNBasedAgent(Agent):
         self.train_calls = 0
         self.num_updates = tf.Variable(initial_value=0, dtype=tf.int32, trainable=False)
 
+        self.batch_dim_range = tf.range(tf.shape(self.train_network_base.x)[0],
+                                   dtype=tf.int32)
+
+        self.policy = None
+
     def prepare(self, loss_op):
         from optimizer.optimizer import get_optimizer
         self.train_step = get_optimizer(self.cfg_parser, loss_op,
@@ -81,6 +98,15 @@ class BaseDQNBasedAgent(Agent):
         init = tf.global_variables_initializer()
         self.sess.run(init)
         self.sess.run(self.copy_op)
+
+        from action_policy.action_policy import Policy
+        self.policy = Policy(self.cfg_parser, self)
+
+    def bellman_op(self, distribution):
+        r = self.reward_placeholder[:, tf.newaxis]
+        casted_t = tf.cast(self.terminal_placeholder, dtype=tf.float32)
+        t = casted_t[:, tf.newaxis]
+        return r + self.cfg["DISCOUNT_FACTOR"] * t * distribution
 
     def batch_experiences(self, experiences):
         batch_x = np.array([i[0] for i in experiences])
@@ -101,21 +127,25 @@ class BaseDQNBasedAgent(Agent):
         feed_dict = self.batch_experiences(experiences)
         return self.sess.run(fetches=self.train_step, feed_dict=feed_dict)
 
+    def y(self, x):
+        raise NotImplementedError
+
     def act(self, x):
         raise NotImplementedError
 
     def predict(self, x):
-        self.predict_calls += 1
+        super().predict(x)
         return self.act(x)
 
     def evaluate(self, x):
-        return self.act(x)
+        super().evaluate(x)
+        raise NotImplementedError
 
     def add(self, x, a, r, x_p, t):
         self.experience_replay.add([x, a, r, x_p, not t])
 
     def train(self, x, a, r, x_p, t):
-        self.train_calls += 1
+        super().train(x, a, r, x_p, t)
         assert(self.predict_calls == self.train_calls)
         self.add(x, a, r, x_p, t)
 
@@ -145,15 +175,35 @@ class BaseDQNBasedAgent(Agent):
                         "/model.ckpt", global_step=self.num_updates,
                         write_meta_graph=True)
 
+    def num_actions(self):
+        return self.train_network.num_actions
+
 
 class DistributionalAgent(BaseDQNBasedAgent):
     def __init__(self, cfg_parser, head):
         super().__init__(cfg_parser, head)
 
+        from function_approximator.head import DistributionalHead
+        self.train_network: DistributionalHead
+        self.target_network: DistributionalHead
+
+        flat_indices_chosen_actions = tf.stack([self.batch_dim_range,
+                                                self.action_placeholder],
+                                               axis=1)
+        self.dist_of_chosen_actions = tf.gather_nd(self.train_network.q_dist,
+                                                   flat_indices_chosen_actions)
+
+        # OPS. for computing target quantile dist.
+        flat_indices_for_argmax_action_target_net = tf.stack([
+            self.batch_dim_range, self.target_network.greedy_action], axis=1)
+        self.dist_of_target_max_q = \
+            tf.gather_nd(self.target_network.q_dist,
+                         flat_indices_for_argmax_action_target_net)
+
     def act(self, x):
-        dist = self.distribution(x)
+        return self.policy.act([x])
 
+    def y(self, x):
+        return self.sess.run(self.train_network.q,
+                             feed_dict={self.train_network_base.x: x})
 
-    # Returns distribution over state-action values.
-    def distribution(self, x):
-        raise NotImplementedError

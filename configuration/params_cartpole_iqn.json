@@ -17,18 +17,25 @@
     "TYPE": "IMPLICIT_QUANTILE",
     "UPDATE_FREQUENCY": 1,
     "DISCOUNT_FACTOR": 0.99,
-    "COPY_TARGET_FREQ": 500,
+    "COPY_TARGET_FREQ": 1000,
     "MINIBATCH_SIZE": 32,
-    "N": 16,
-    "N_PRIME": 16,
-    "K": 32,
-    "SAVE_FREQ": 1000
+    "N": 8,
+    "N_PRIME": 8,
+    "K": 8,
+    "SAVE_FREQ": 1000,
+    "KAPPA": 1
   },
 
   "POLICY": {
     "EXPECTATION": {
       "TYPE": "ADAPTIVE_LSTM",
-      "LSTM_UNITS": 1
+      "LSTM_UNITS": 16
+    },
+    "EXPLORATION_STRATEGY": {
+      "TYPE": "EPSILON_GREEDY",
+      "EPSILON_START": 1.0,
+      "EPSILON_END": 0.01,
+      "EPSILON_FINAL_TIMESTEP": 10000
     }
   },
 

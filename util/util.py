@@ -4,7 +4,7 @@ from function_approximator import GeneralNetwork, Head
 
 
 def get_vars_with_scope(scope):
-    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
+    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
 
 
 def get_copy_op(scope1, scope2):
@@ -12,9 +12,11 @@ def get_copy_op(scope1, scope2):
     target_variables = get_vars_with_scope(scope2)
 
     assign_ops = []
-    for main_var, target_var in zip(sorted(train_variables, key=lambda x: x.name),
-                                    sorted(target_variables, key=lambda x: x.name)):
-        assign_ops.append(tf.assign(target_var, main_var))
+    for main_var in train_variables:
+        for target_var in target_variables:
+            if str(main_var.name).replace(scope1, "") == \
+               str(target_var.name).replace(scope2, ""):
+                assign_ops.append(tf.assign(target_var, main_var))
 
     print("Copying Ops.:", len(assign_ops))
 
@@ -60,3 +62,16 @@ def build_train_and_target_general_network_with_head(
 
     return [train_network_base, train_network,
             target_network_base, target_network, copy_operation, saver]
+
+
+def huber_loss(u, kappa):
+    return tf.where(tf.abs(u) <= kappa, tf.square(u) * 0.5,
+                    kappa * (tf.abs(u) - 0.5 * kappa))
+
+
+def asymmetric_huber_loss(u, kappa, tau):
+    delta = tf.cast(u < 0, tf.float32)
+    if kappa == 0:
+        return (tau - delta) * u
+    else:
+        return tf.abs(tau - delta) * huber_loss(u, kappa)
