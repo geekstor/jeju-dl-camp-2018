@@ -45,7 +45,7 @@ class Environment:
             from util.wrappers import wrap_env, SonicActionWrapper
             if "WRAP_SONIC" in gym_env_cfg and gym_env_cfg["WRAP_SONIC"]:
                 self.env = SonicActionWrapper(self.env)
-            #self.env = wrap_env(self.env, gym_env_cfg)
+            self.env = wrap_env(self.env, gym_env_cfg)
         else:
             raise NotImplementedError
 
