@@ -15,14 +15,11 @@
   },
 
   "HEAD": {
-    "EMBEDDING_SIZE": 64
+    "NB_ATOMS": 51
   },
 
   "AGENT": {
-    "TYPE": "IMPLICIT_QUANTILE",
-    "N": 16,
-    "N_PRIME": 16,
-    "K": 32,
+    "TYPE": "QUANTILE_REGRESSION",
     "KAPPA": 1,
 
     "DISCOUNT_FACTOR": 0.99,
@@ -37,10 +34,6 @@
   },
 
   "POLICY": {
-    "EXPECTATION": {
-      "TYPE": "ADAPTIVE_LSTM",
-      "LSTM_UNITS": 32
-    },
     "EXPLORATION_STRATEGY": {
       "TYPE": "EPSILON_GREEDY",
       "EPSILON_START": 1.0,

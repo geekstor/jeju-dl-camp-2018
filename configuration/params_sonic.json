@@ -3,10 +3,6 @@
     "ENVIRONMENT_TYPE": "GYM-RETRO",
     "GYM_ENV_NAME": "SonicTheHedgehog-Genesis",
     "GYM_ENV_LEVEL": "LabyrinthZone.Act1",
-    "EPISODIC_LIFE": 0,
-    "HISTORY_LEN": 4,
-    "SCALED_FLOAT": 1,
-    "CLIP_REWARDS": 0,
     "WRAP_SONIC": 1
   },
 
@@ -14,9 +10,7 @@
     "CONVOLUTIONAL_LAYERS_SPEC": [
     {"filters": 32, "kernel_size": 8, "strides": 4},
     {"filters": 64, "kernel_size": 4, "strides": 2},
-    {"filters": 64, "kernel_size": 3, "strides": 1} ]
-
-,
+    {"filters": 64, "kernel_size": 3, "strides": 1} ],
     "DENSE_LAYERS_SPEC": [64]
   },
 
@@ -26,26 +20,42 @@
 
   "AGENT": {
     "TYPE": "CATEGORICAL",
-    "UPDATE_FREQUENCY": 1,
-    "DISCOUNT_FACTOR": 0.99,
-    "COPY_TARGET_FREQ": 1000,
-    "MINIBATCH_SIZE": 32, 
-    "SAVE_FREQ": 10000,
     "V_MIN": 0,
-    "V_MAX":200
+    "V_MAX": 10000,
+
+    "DISCOUNT_FACTOR": 0.99,
+    "UPDATE_FREQUENCY": 1,
+    "COPY_TARGET_FREQ": 2500,
+    "MINIBATCH_SIZE": 32, 
+    "SAVE_FREQ": 10000
   },
 
   "EXPERIENCE_REPLAY": {
-    "EXPERIENCE_REPLAY_SIZE": 500000
+    "EXPERIENCE_REPLAY_SIZE": 100000
+  },
+
+  "POLICY": {
+    "EXPLORATION_STRATEGY": {
+      "TYPE": "EPSILON_GREEDY",
+      "EPSILON_START": 1.0,
+      "EPSILON_END": 0.1,
+      "EPSILON_FINAL_TIMESTEP": 500000
+    }
   },
 
   "OPTIMIZER": {
     "OPTIMIZER_TYPE": "ADAM",
     "LEARNING_RATE": 1e-3,
-    "EPSILON": 0.0003125
+    "EPSILON": 1e-8
   },
+
   "MANAGER": {
-    "NUM_TRAIN_STEPS": 10000000,
+    "NUM_TRAIN_STEPS": 1000000,
     "AVERAGE_REWARD_WINDOW": 10
+  },
+
+  "TENSORFLOW": {
+    "INTER_OP_PARALLELISM": 4,
+    "INTRA_OP_PARALLELISM": 4
   }
 }

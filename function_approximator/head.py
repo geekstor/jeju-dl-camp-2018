@@ -77,12 +77,6 @@ class SoftmaxFixedAtomsDistributionalHead(FixedAtomsDistributionalHead):
         self.q_dist = tf.nn.softmax(self.q_dist, name="state_action_value_dist",
                               axis=-1)
 
-        self.q = tf.reduce_mean(self.q_dist, axis=-1)
-
-        self.greedy_action = tf.cast(tf.squeeze(
-            tf.argmax(self.q, axis=-1)
-        ), dtype=tf.int32)
-
 
 class IQNHead(DistributionalHead):
     required_params = ["EMBEDDING_SIZE"]
@@ -136,6 +130,8 @@ class IQNHead(DistributionalHead):
             q_dist_layer(mul_uniform),
             perm=[0, 2, 1]
         )
+
+        self.q_undistorted = tf.reduce_mean(self.q_dist, axis=-1)
 
         self.q_dist_distorted = tf.transpose(
             q_dist_layer(mul_distorted),

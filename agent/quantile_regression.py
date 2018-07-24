@@ -16,7 +16,7 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
         self.cfg = cfg_parser.parse_and_return_dictionary(
             "AGENT", QuantileRegressionAgent.required_params)
 
-        self.build_loss_op()
+        self.loss = self.build_loss_op()
 
         self.prepare(self.loss)
 
@@ -32,10 +32,10 @@ class QuantileRegressionAgent(agent.DistributionalAgent):
             self.dist_of_chosen_actions[:, :, tf.newaxis]
 
         from util.util import asymmetric_huber_loss
-        self.loss = tf.reduce_mean(asymmetric_huber_loss(u, self.cfg["KAPPA"],
+        loss = tf.reduce_mean(asymmetric_huber_loss(u, self.cfg["KAPPA"],
                                                          self.tau_hat))
 
-        return self.loss
+        return loss
 
     def distribution(self, state):
         return self.sess.run(fetches=[self.train_network.q_dist],

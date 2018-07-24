@@ -38,10 +38,8 @@ class ImplicitQuantileAgent(agent.DistributionalAgent):
                       (1. - self.train_network.distorted_tau)), axis=-1)
 
         extreme_loss = tf.reduce_mean(tf.reduce_sum(
-            -p * tf.log(p) / tf.log(2.), axis=-1
+            -p * tf.log(p + 1e-5) / tf.log(2.), axis=-1
         ))
-
-        extreme_loss = tf.Print(extreme_loss, [p, extreme_loss, diversity_bonus], summarize=10)
 
         flat_indices_chosen_actions = tf.stack([self.batch_dim_range,
                                                 self.action_placeholder],
@@ -49,14 +47,20 @@ class ImplicitQuantileAgent(agent.DistributionalAgent):
         distorted_dist_of_chosen_actions = tf.gather_nd(self.train_network.q_dist_distorted,
                                                    flat_indices_chosen_actions)
 
-        u = expected_quantiles[:, tf.newaxis, :] - \
-            distorted_dist_of_chosen_actions[:, :, tf.newaxis]
-        k = tf.constant(self.cfg["KAPPA"], name="kappa", dtype=tf.float32)
-        from util.util import asymmetric_huber_loss
-        loss_2 = tf.reduce_mean(asymmetric_huber_loss(u, k,
-                              distorted_dist_of_chosen_actions[:, tf.newaxis, :]))
+        self.target_network: IQNHead
+        loss_2 = tf.reduce_mean(tf.squared_difference(tf.stop_gradient(
+            self.train_network.q_undistorted), self.train_network.q))
 
-        return loss + loss_2 #+ extreme_loss - diversity_bonus
+        #loss_2 = tf.Print(loss_2, [loss, loss_2, extreme_loss, diversity_bonus])
+
+        # u = expected_quantiles[:, tf.newaxis, :] - \
+        #     distorted_dist_of_chosen_actions[:, :, tf.newaxis]
+        # k = tf.constant(self.cfg["KAPPA"], name="kappa", dtype=tf.float32)
+        # from util.util import asymmetric_huber_loss
+        # loss_2 = tf.reduce_mean(asymmetric_huber_loss(u, k,
+        #                         distorted_dist_of_chosen_actions[:, tf.newaxis, :]))
+
+        return loss + loss_2 #+ extreme_loss #- diversity_bonus
 
     def learn(self, experiences):
         feed_dict = self.batch_experiences(experiences)

@@ -15,21 +15,22 @@
 
   "AGENT": {
     "TYPE": "IMPLICIT_QUANTILE",
-    "UPDATE_FREQUENCY": 1,
-    "DISCOUNT_FACTOR": 0.99,
-    "COPY_TARGET_FREQ": 1000,
-    "MINIBATCH_SIZE": 32,
     "N": 8,
     "N_PRIME": 8,
     "K": 8,
-    "SAVE_FREQ": 1000,
-    "KAPPA": 1
+    "KAPPA": 1,
+
+    "DISCOUNT_FACTOR": 0.99,
+    "UPDATE_FREQUENCY": 1,
+    "COPY_TARGET_FREQ": 500,
+    "MINIBATCH_SIZE": 32,
+    "SAVE_FREQ": 1000
   },
 
   "POLICY": {
     "EXPECTATION": {
       "TYPE": "ADAPTIVE_LSTM",
-      "LSTM_UNITS": 16
+      "LSTM_UNITS": 8
     },
     "EXPLORATION_STRATEGY": {
       "TYPE": "EPSILON_GREEDY",
@@ -40,7 +41,7 @@
   },
 
   "EXPERIENCE_REPLAY": {
-    "EXPERIENCE_REPLAY_SIZE": 50000
+    "EXPERIENCE_REPLAY_SIZE": 20000
   },
 
   "OPTIMIZER": {

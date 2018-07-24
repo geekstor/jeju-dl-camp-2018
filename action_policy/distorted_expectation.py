@@ -65,12 +65,12 @@ def AdaptiveQuantileChoiceLSTM(cfg_parser: ConfigurationManager, psi, N_placehol
     # No need to reset: https://stackoverflow.com/questions/38441589/
     # is-rnn-initial-state-reset-for-subsequent-mini-batches
     outputs, state = tf.nn.dynamic_rnn(dtype=tf.float32, cell=cell, inputs=tau_unif,
-                                       time_major=False, initial_state=initial_state)
+                                      time_major=False, initial_state=initial_state)
     output = tf.layers.dense(inputs=outputs, units=1)
-    reshaped_out = tf.reshape(output, [-1, N_placeholder])
-    #tau = tf.nn.sigmoid(reshaped_out)
-    tau = (reshaped_out - tf.reduce_min(reshaped_out)) / \
-           (tf.reduce_max(reshaped_out) - tf.reduce_min(reshaped_out))
+    reshaped_out = tf.reshape(output, [tf.shape(psi)[0], N_placeholder])
+    tau = tf.nn.sigmoid(reshaped_out)
+    # tau = (reshaped_out - tf.reduce_min(reshaped_out)) / \
+    #       (tf.reduce_max(reshaped_out) - tf.reduce_min(reshaped_out))
     return tau
 
 def CPW(tau, eta):

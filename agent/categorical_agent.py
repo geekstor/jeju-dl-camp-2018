@@ -21,117 +21,44 @@ class CategoricalAgent(agent.DistributionalAgent):
         self.cfg = cfg_parser.parse_and_return_dictionary(
             "AGENT", CategoricalAgent.required_params)
 
-        self.build_loss_op()
+        self.cfg["NB_ATOMS"] = self.cfg_parser["HEAD.NB_ATOMS"]
+
+        self.Z, self.delta_z = np.linspace(self.cfg["V_MIN"], self.cfg["V_MAX"],
+                                 self.cfg["NB_ATOMS"],
+                                 retstep=True)
+
+        self.loss = self.build_loss_op()
 
         self.prepare(self.loss)
 
     def build_loss_op(self):
-        Z, delta_z = np.linspace(self.cfg["V_MIN"], self.cfg["V_MAX"],
-                                 self.train_network.cfg["NB_ATOMS"],
-                                 retstep=True)
-        Z = tf.constant(Z, dtype=tf.float32, name="Z")
-        delta_z = tf.constant(delta_z, dtype=tf.float32, name="Z_step")
+        Z = tf.constant(self.Z, dtype=tf.float32, name="Z")
+        delta_z = tf.constant(self.delta_z, dtype=tf.float32, name="Z_step")
 
-        for var_scope, graph in {"train_net": self.train_network,
-                                 "target_net": self.target_network}.items():
-            with tf.variable_scope(var_scope):
-                graph.post_mul = tf.reduce_sum(graph.y * Z,
-                                               axis=-1)
+        Z_batch = tf.reshape(tf.tile(Z, [tf.shape(self.train_network_base.x)[0]]),
+                             [tf.shape(self.train_network_base.x)[0], self.cfg["NB_ATOMS"]])
 
-                graph.argmax_action = tf.argmax(graph.post_mul, axis=-1,
-                                                output_type=tf.int32,
-                                                name="argmax_action")
+        Tz = tf.clip_by_value(self.bellman_op(Z_batch),
+                              self.cfg["V_MIN"], self.cfg["V_MAX"])
 
-        batch_size_range = tf.range(tf.shape(self.target_network_base.x)[0])
-        # Get it's corresponding distribution (this is used for
-        # computing the target distribution)
-        self.argmax_action_distribution = tf.gather_nd(
-            self.target_network.y,
-            tf.stack(
-                (batch_size_range, self.target_network.argmax_action),
-                axis=1, name="index_for_argmax_action_q_dist"
-            ), name="gather_nd_for_batch_argmax_action_q_dists"
-        )  # Axis = 1 => [N, 2]
+        tiled_Tz = tf.reshape(tf.tile(Tz, [1, self.cfg["NB_ATOMS"]]),
+                              [-1, self.cfg["NB_ATOMS"], self.cfg["NB_ATOMS"]])
+        tiled_Z = tf.reshape(tf.tile(Z_batch, [1, self.cfg["NB_ATOMS"]]),
+                             [-1, self.cfg["NB_ATOMS"], self.cfg["NB_ATOMS"]])
 
-        self.Tz = tf.clip_by_value(tf.reshape(self.reward_placeholder, [-1, 1]) + self.cfg["DISCOUNT_FACTOR"] *
-                                   tf.cast(tf.reshape(self.terminal_placeholder, [-1, 1]), tf.float32) * Z,
-                                   clip_value_min=self.cfg["V_MIN"],
-                                   clip_value_max=self.cfg["V_MAX"],
-                                   name="Tz")
+        inner_term = tf.abs(tiled_Tz - tf.transpose(tiled_Z, [0, 2, 1])) / delta_z
 
-        # Compute bin number (can be floating point/integer).
-        self.b = tf.identity((self.Tz - self.cfg["V_MIN"]) / delta_z, name="b")
+        left_term = tf.clip_by_value(1 - inner_term, 0, 1)
 
-        # Lower and Upper Bins.
-        self.l = tf.floor(self.b, name="l")
-        self.u = tf.ceil(self.b, name="u")
+        right_term = self.dist_of_target_max_q
 
-        # Add weight to the lower bin based on distance from upper bin to
-        # approximate bin index b. (0--b--1. If b = 0.3. Then, assign bin
-        # 0, p(b) * 0.7 weight and bin 1, p(Z = z_b) * 0.3 weight.)
-        self.indexable_l = tf.stack(
-            (
-                tf.identity(tf.reshape(batch_size_range, [-1, 1]) *
-                            tf.ones((1, tf.shape(self.target_network.y)[-1]),
-                                    dtype=tf.int32), name="index_for_l"),
-                # BATCH_SIZE_RANGE x NB_ATOMS [[0, ...], [1, ...], ...]
-                tf.cast(self.l, dtype=tf.int32)
-            ), axis=-1, name="indexable_l"
-        )
-        self.m_l_vals = tf.identity(self.argmax_action_distribution * (1 - (self.b - self.l)),
-                                    name="values_to_add_for_m_l")
-        self.m_l = tf.scatter_nd(tf.reshape(self.indexable_l, [-1, 2]),
-                                 tf.reshape(self.m_l_vals, [-1]),
-                                 tf.shape(self.l), name="m_l")
+        projected_update = tf.einsum("ijk,ik->ij", left_term, right_term)
 
-        # Add weight to the lower bin based on distance from upper bin to
-        # approximate bin index b.
-        self.indexable_u = tf.stack(
-            (
-                tf.identity(tf.reshape(batch_size_range, [-1, 1]) *
-                            tf.ones((1, tf.shape(self.target_network.y)[-1]),
-                                    dtype=tf.int32), name="index_for_u"),
-                # BATCH_SIZE_RANGE x NB_ATOMS [[0, ...], [1, ...], ...]
-                tf.cast(self.u, dtype=tf.int32)
-            ), axis=-1, name="indexable_u"
-        )
-        self.m_u_vals = tf.identity(self.argmax_action_distribution * (self.b - self.l),
-                                    name="values_to_add_for_m_u")
-        self.m_u = tf.scatter_nd(tf.reshape(self.indexable_u, [-1, 2]),
-                                 tf.reshape(self.m_u_vals, [-1]),
-                                 tf.shape(self.u), name="m_u")
+        loss = -1 * projected_update * tf.log(self.dist_of_chosen_actions)
 
-        # Add Contributions of both upper and lower parts and
-        # stop gradient to not update the target network.
-        self.m = tf.stop_gradient(tf.squeeze(self.m_l + self.m_u, name="m"))
+        return tf.reduce_mean(tf.reduce_sum(loss, axis=-1))
 
-        batch_size_range = tf.range(start=0,
-                                        limit=tf.shape(self.train_network_base.x)[0])
-
-        # Compute Q-Dist. for the action.
-        self.action_q_dist = tf.gather_nd(self.train_network.y,
-                                          tf.stack((batch_size_range,
-                                                    self.action_placeholder),
-                                                   axis=1))
-
-        self.loss_sum = -tf.reduce_sum(self.m *
-                                       tf.log(self.action_q_dist + 1e-5), axis=-1, name="loss")
-
-        self.loss = tf.reduce_mean(self.loss_sum)
-
-    def distribution(self, state):
-        return self.sess.run(fetches=[self.train_network.y],
-                             feed_dict={self.train_network_base.x: state})
-
-    def greedy_action(self, state):
-        return self.sess.run(fetches=self.train_network.argmax_action,
-                             feed_dict={self.train_network_base.x: state})
-
-    def act(self, x):
-        greedy_f = lambda inp: self.greedy_action([inp])[0]
-        exploratory_f = lambda inp: random.randint(0, self.cfg_parser["NUM_ACTIONS"] - 1)
-
-        if random.random() < 1.0 - (min(10000, self.num_updates) / 10000) * (1 - 0.1):
-            return random.randint(0, self.cfg_parser["NUM_ACTIONS"] - 1)
-        else:
-            return self.greedy_action([x])[0]
+    def y(self, state):
+        return np.sum(self.sess.run(fetches=[self.train_network.q_dist],
+                                    feed_dict={self.train_network_base.x: state}) * self.Z,
+                      axis=-1)
