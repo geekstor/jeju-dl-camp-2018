@@ -1,0 +1,22 @@
+FROM openai/retro-agent:tensorflow
+
+# Needed for OpenCV.
+RUN apt-get update && \
+    apt-get install -y libgtk2.0-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Baselines has some unneeded and cumbersome dependencies,
+# so we manually fetch the deps we need.
+RUN . ~/venv/bin/activate && \
+    pip install scipy tqdm joblib zmq dill progressbar2 cloudpickle opencv-python && \
+    pip install --no-deps git+https://github.com/openai/baselines.git@24fe3d6576dd8f4cdd5f017805be689d6fa6be8c
+
+# Use the anyrl open source RL framework.
+RUN . ~/venv/bin/activate && \
+    pip install anyrl==0.11.17
+
+ADD rainbow_agent.py ./agent.py
+ADD sonic_util.py .
+#ADD sonic_util.py /root/compo/sonic_util.py
+
+CMD ["python", "-u", "/root/compo/agent.py"]

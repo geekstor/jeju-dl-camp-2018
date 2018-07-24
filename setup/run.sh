@@ -10,3 +10,6 @@ retro-contest run --agent $DOCKER_REGISTRY/simple-agent:v1 \
 retro-contest run --agent $DOCKER_REGISTRY/simple-agent:v1 \
     --results-dir results --no-nv --use-host-data \
     SonicTheHedgehog-Genesis GreenHillZone.Act1 
+
+
+retro-contest run --agent gcr.io/dlcampjeju2018-207503/simplesonic1:latest --results-dir results --no-nv --use-host-data SonicTheHedgehog-Genesis GreenHillZone.Act1
