@@ -3,13 +3,21 @@ import tensorflow as tf
 from scipy.misc import imresize
 
 sess = tf.Session()
-new_saver = tf.train.import_meta_graph('./IQNDueling/Model-20000.meta')
-new_saver.restore(sess, "./IQNDueling/Model-20000")
+new_saver = tf.train.import_meta_graph('~/Desktop/test/model.ckpt-660000.meta')
+new_saver.restore(sess, "~/Desktop/test/model.ckpt-660000")
 
 import gym
 import random
 print([n.name for n in tf.get_default_graph().as_graph_def().node])
-env = gym.make("CartPole-v0")
+from retro_contest.local import make
+gym_env_required_params = ["GYM_ENV_NAME"]
+gym_env_cfg = config_parser.parse_and_return_dictionary(
+        "ENVIRONMENT", gym_env_required_params)
+self.env = make(game=gym_env_cfg["GYM_ENV_NAME"], state=gym_env_cfg["GYM_ENV_LEVEL"], bk2dir=config_parser["TRAIN_FOLDER"])
+from util.wrappers import wrap_env, SonicActionWrapper
+if "WRAP_SONIC" in gym_env_cfg and gym_env_cfg["WRAP_SONIC"]:
+    self.env = SonicActionWrapper(self.env)
+self.env = wrap_env(self.env, gym_env_cfg)
 state = env.reset()
 buffer = []
 for frame_idx in range(2000):
@@ -46,7 +54,7 @@ for idx, image in enumerate(images):
     top_end = top_start + image_height
     master[top_start:top_end, left_start:left_end, :] = image
 
-open("./IQNDueling/images.png", "wb").write(
+open("~/Desktop/images.png", "wb").write(
     tf.image.encode_png(master).eval(session=sess)
 )
 

@@ -49,6 +49,7 @@ e = Environment(cfg_manager)
 # --- Load Defaults for Action and Obs. --- #
 cfg_manager["DEFAULT_NUM_ACTIONS"] = e.num_actions()
 cfg_manager["DEFAULT_OBS_DIMS"] = e.observation_dims()
+print(e.observation_dims())
 # ----------------------------------------- #
 
 # --- Wrap environment so that network outputs lead to correct actions --- #
@@ -105,6 +106,7 @@ class Manager():
         x = self.env.reset()
 
         for steps in range(cfg_manager["MANAGER"]["NUM_TRAIN_STEPS"]):
+            print("shape: ", x.shape)
             a = self.agent.predict(x)
             x_prime, r, done, _ = self.env.step(a)
             agent.train(x, a, r, x_prime, done)

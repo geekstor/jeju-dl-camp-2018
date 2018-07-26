@@ -46,6 +46,16 @@ class Environment:
             if "WRAP_SONIC" in gym_env_cfg and gym_env_cfg["WRAP_SONIC"]:
                 self.env = SonicActionWrapper(self.env)
             self.env = wrap_env(self.env, gym_env_cfg)
+        elif env_cfg["ENVIRONMENT_TYPE"] == "WINDY-GRIDWORLD":
+            #gym_env_required_params = ["GYM_ENV_NAME"]
+            #from util.wrappers import wrap_gridworld
+            #import gym
+            #gym_env_required_params = ["GYM_ENV_NAME"]
+            #gym_env_cfg = config_parser.parse_and_return_dictionary(
+                #"ENVIRONMENT")
+            #self.env = gym.make(gym_env_cfg["GYM_ENV_NAME"])
+            from environment.windy_gridworld import WindyGridworldEnv
+            self.env = WindyGridworldEnv()
         else:
             raise NotImplementedError
 
