@@ -57,4 +57,4 @@ Authors: Valliappa Chockalingam and Rishab Gargeya
 
 * run on GCP: nohup xvfb-run -s "-screen 0 1400x900x24" python -m trainer.train params_*.json &
 
-
+This was supported by [Deep Learning Camp Jeju 2018](http://jeju.dlcamp.org/2018/) which was organized by [TensorFlow Korea User Group](https://facebook.com/groups/TensorFlowKR/). We also thank our mentors Yu-Han Liu and Taehoon Kim.
