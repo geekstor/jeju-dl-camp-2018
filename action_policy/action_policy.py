@@ -60,6 +60,27 @@ class EpsilonGreedy:
         else:
             return np.argmax(self.agent.y(x))
 
+class UncertaintyGreedy:
+    required_params = ["DISTRIBUTION"]
+
+    def __init__(self, cfg_parser, agent):
+        xpl_policy_cfg = cfg_parser.parse_and_return_dictionary(
+            "POLICY.EXPLORATION_STRATEGY", UncertaintyGreedy.required_params)
+
+        self.DISTRIBUTION = xpl_policy_cfg["DISTRIBUTION"]
+
+        assert(hasattr(agent, "predict_calls"))
+
+        self.agent = agent
+
+    def get_eps(self):
+        return np.var(self.agent.dist_of_chosen_actions)
+
+    def act(self, x):
+        if np.random.random() < self.get_eps():
+            return np.random.randint(0, self.agent.num_actions())
+        else:
+            return np.argmax(self.agent.y(x))
 
 class SoftMax:
     required_params = []
